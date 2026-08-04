@@ -236,33 +236,92 @@ def get_agent(matricule):
 
 @app.route("/api/pointer", methods=["POST"])
 def pointer():
-    data      = request.get_json()
-    matricule = data.get("matricule","").upper()
-    type_p    = data.get("type","arrivee")
+    data        = request.get_json()
+    identifiant = data.get("matricule","").strip()
+    type_p      = data.get("type","arrivee")
+    mac_address = data.get("mac_address","").strip()
 
-    # Vérif IP
+    # Récupérer IP
     ip = request.headers.get('X-Forwarded-For',
          request.headers.get('X-Real-IP', request.remote_addr))
     if ip and ',' in ip: ip = ip.split(',')[0].strip()
 
     with get_conn() as conn:
+        # Créer tables si nécessaire
+        conn.execute("""CREATE TABLE IF NOT EXISTS appareils_pointes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            date_pointage TEXT NOT NULL,
+            mac_address TEXT DEFAULT '',
+            ip_address TEXT DEFAULT '',
+            agent_id INTEGER,
+            type_pointage TEXT DEFAULT 'arrivee',
+            date_creation TEXT DEFAULT (datetime('now','localtime'))
+        )""")
+        conn.execute("""CREATE TABLE IF NOT EXISTS appareils_exclus (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            mac_address TEXT DEFAULT '',
+            ip_address TEXT DEFAULT '',
+            description TEXT DEFAULT '',
+            actif INTEGER DEFAULT 1,
+            date_ajout TEXT DEFAULT (datetime('now','localtime'))
+        )""")
+        conn.commit()
+
+        # Vérif IP bureau
         ips_ok = [dict(r) for r in conn.execute(
             "SELECT * FROM ip_autorisees WHERE actif=1").fetchall()]
         if ips_ok and not any(i["ip_address"]==ip for i in ips_ok):
             return jsonify({"success":False,"icon":"🚫",
                 "message":"Pointage non autorisé !",
-                "detail":f"Vous devez être connecté au WiFi du bureau. (IP: {ip})",
+                "detail":f"Connectez-vous au WiFi du bureau. (IP: {ip})",
                 "heure":""})
 
-        agent = conn.execute("SELECT * FROM agents WHERE matricule=? AND actif=1",
-                            (matricule,)).fetchone()
+        # Chercher agent par matricule OU téléphone
+        agent = conn.execute("""
+            SELECT * FROM agents
+            WHERE (matricule=? OR telephone=?) AND actif=1
+        """, (identifiant.upper(), identifiant)).fetchone()
         if not agent:
             return jsonify({"success":False,"icon":"❌",
-                "message":"Matricule introuvable","detail":"","heure":""})
+                "message":"Identifiant introuvable",
+                "detail":"Vérifiez votre matricule ou téléphone",
+                "heure":""})
 
-        agent = dict(agent)
-        today = datetime.now().strftime("%Y-%m-%d")
-        heure = datetime.now().strftime("%H:%M:%S")
+        agent     = dict(agent)
+        today     = datetime.now().strftime("%Y-%m-%d")
+        heure     = datetime.now().strftime("%H:%M:%S")
+        identif_appareil = mac_address if mac_address else ip
+
+        # Contrôle appareil pour arrivée
+        if type_p == "arrivee" and identif_appareil:
+            # Vérifier si appareil exclu (mode test)
+            exclu = conn.execute("""
+                SELECT * FROM appareils_exclus
+                WHERE actif=1
+                AND (mac_address=? OR ip_address=?)
+            """, (identif_appareil, ip)).fetchone()
+
+            if not exclu:
+                # Vérifier doublon — un appareil par agent par jour
+                deja = conn.execute("""
+                    SELECT ap.*, ag.nom, ag.prenom
+                    FROM appareils_pointes ap
+                    JOIN agents ag ON ap.agent_id = ag.id
+                    WHERE ap.date_pointage=?
+                    AND ap.type_pointage='arrivee'
+                    AND ap.agent_id != ?
+                    AND (
+                        (ap.mac_address != '' AND ap.mac_address=?) OR
+                        (ap.mac_address='' AND ap.ip_address=?)
+                    )
+                """, (today, agent["id"], identif_appareil, ip)).fetchone()
+
+                if deja:
+                    autre = dict(deja)
+                    return jsonify({"success":False,"icon":"🚫",
+                        "message":"Appareil déjà utilisé !",
+                        "detail":f"Cet appareil a déjà pointé pour {autre['prenom']} {autre['nom']} aujourd'hui.",
+                        "heure":""})
 
         if type_p == "arrivee":
             existing = conn.execute("""SELECT * FROM pointages
@@ -278,6 +337,13 @@ def pointer():
                 conn.execute("""INSERT INTO pointages
                     (agent_id,date_pointage,heure_arrivee) VALUES (?,?,?)""",
                     (agent["id"],today,heure))
+            # Enregistrer l'appareil
+            try:
+                conn.execute("""INSERT INTO appareils_pointes
+                    (date_pointage, mac_address, ip_address, agent_id, type_pointage)
+                    VALUES (?,?,?,?,?)
+                """, (today, mac_address, ip, agent["id"], "arrivee"))
+            except: pass
             conn.commit()
             return jsonify({"success":True,"icon":"✅",
                 "message":f"Bonjour {agent['prenom']} !",
