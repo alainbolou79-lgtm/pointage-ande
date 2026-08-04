@@ -620,13 +620,34 @@ def importer_agents():
 def appareils():
     today = datetime.now().strftime("%Y-%m-%d")
     with get_conn() as conn:
-        liste = [dict(r) for r in conn.execute("""
-            SELECT a.*, ag.nom, ag.prenom, ag.matricule
-            FROM appareils_pointes a
-            JOIN agents ag ON a.agent_id = ag.id
-            WHERE a.date_pointage = ?
-            ORDER BY a.date_creation DESC
-        """, (today,)).fetchall()]
+        # Créer les tables si elles n'existent pas
+        conn.execute("""CREATE TABLE IF NOT EXISTS appareils_pointes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            date_pointage TEXT NOT NULL,
+            mac_address TEXT DEFAULT '',
+            ip_address TEXT DEFAULT '',
+            agent_id INTEGER,
+            type_pointage TEXT DEFAULT 'arrivee',
+            date_creation TEXT DEFAULT (datetime('now','localtime'))
+        )""")
+        conn.execute("""CREATE TABLE IF NOT EXISTS appareils_exclus (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            mac_address TEXT DEFAULT '',
+            ip_address TEXT DEFAULT '',
+            description TEXT DEFAULT '',
+            actif INTEGER DEFAULT 1,
+            date_ajout TEXT DEFAULT (datetime('now','localtime'))
+        )""")
+        conn.commit()
+        try:
+            liste = [dict(r) for r in conn.execute("""
+                SELECT a.*, ag.nom, ag.prenom, ag.matricule
+                FROM appareils_pointes a
+                JOIN agents ag ON a.agent_id = ag.id
+                WHERE a.date_pointage = ?
+                ORDER BY a.date_creation DESC
+            """, (today,)).fetchall()]
+        except: liste = []
     return render_template("appareils.html", appareils=liste, today=today)
 
 # ── EXCLUSIONS MAC ────────────────────────────────────────────────────────────
