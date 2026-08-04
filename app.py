@@ -709,3 +709,29 @@ def supprimer_exclusion(eid):
         conn.commit()
     flash("Exclusion supprimée.","success")
     return redirect(url_for("appareils_exclus"))
+
+# ── MODIFIER AGENT ────────────────────────────────────────────────────────────
+@app.route("/agents/<int:aid>/modifier", methods=["GET","POST"])
+@admin_required
+def modifier_agent(aid):
+    with get_conn() as conn:
+        agent = conn.execute("SELECT * FROM agents WHERE id=?", (aid,)).fetchone()
+    if not agent:
+        flash("Agent introuvable.","error")
+        return redirect(url_for("agents"))
+    agent = dict(agent)
+    if request.method == "POST":
+        nom       = request.form.get("nom","").strip()
+        prenom    = request.form.get("prenom","").strip()
+        matricule = request.form.get("matricule","").strip().upper()
+        poste     = request.form.get("poste","").strip()
+        telephone = request.form.get("telephone","").strip()
+        actif     = 1 if request.form.get("actif") else 0
+        with get_conn() as conn:
+            conn.execute("""UPDATE agents SET nom=?,prenom=?,matricule=?,
+                poste=?,telephone=?,actif=? WHERE id=?""",
+                (nom,prenom,matricule,poste,telephone,actif,aid))
+            conn.commit()
+        flash(f"✅ Agent {prenom} {nom} modifié !","success")
+        return redirect(url_for("agents"))
+    return render_template("modifier_agent.html", agent=agent)
