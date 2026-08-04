@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block content %}
+<main>
+<div class="card" style="max-width:600px;margin:0 auto">
+  <div class="card-title">⚙️ CONFIGURATION DE LA STRUCTURE</div>
+  <form method="post">
+    <div class="form-group">
+      <label>Nom de la structure</label>
+      <input type="text" name="structure_nom" value="{{ cfg.structure_nom }}" placeholder="Ex: Ministère de l'Environnement">
+    </div>
+    <div class="form-group">
+      <label>Nom du service</label>
+      <input type="text" name="structure_service" value="{{ cfg.structure_service }}" placeholder="Ex: Direction des Ressources Humaines">
+    </div>
+    <div class="form-group">
+      <label>Chef de service (signature)</label>
+      <input type="text" name="chef_service" value="{{ cfg.chef_service }}" placeholder="Ex: M. KOUAME Jean">
+    </div>
+    <button type="submit" class="btn btn-primary" style="width:100%;padding:14px">💾 Sauvegarder</button>
+  </form>
+</div>
+</main>
+{% endblock %}

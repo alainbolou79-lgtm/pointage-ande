@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Connexion – Pointage</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',Arial,sans-serif;background:#0F1923;color:#E8F0FE;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px}
+.logo{font-size:48px;margin-bottom:16px;text-align:center}
+h1{font-size:22px;font-weight:700;color:#00C9A7;text-align:center;margin-bottom:4px}
+.sub{font-size:13px;color:#7A8FA6;text-align:center;margin-bottom:28px}
+.card{background:#162030;border-radius:16px;border:1px solid #243447;padding:36px;width:100%;max-width:400px}
+label{display:block;font-size:11px;color:#7A8FA6;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;font-weight:600}
+input{width:100%;padding:12px 16px;border-radius:8px;border:1px solid #243447;background:#1E2D3D;color:#E8F0FE;font-size:14px;margin-bottom:16px;font-family:inherit}
+input:focus{outline:none;border-color:#00C9A7}
+button{width:100%;padding:13px;border-radius:8px;border:none;background:#00C9A7;color:#0A1520;font-size:14px;font-weight:700;cursor:pointer}
+.flash{padding:12px 16px;border-radius:8px;margin-bottom:16px;font-size:13px;font-weight:600;background:rgba(255,68,68,.15);color:#FF6B6B;border:1px solid rgba(255,68,68,.3)}
+</style>
+</head>
+<body>
+<div class="logo">🏢</div>
+<h1>Système de Pointage</h1>
+<div class="sub">Connectez-vous pour accéder au tableau de bord</div>
+<div class="card">
+{% for cat,msg in get_flashed_messages(with_categories=True) %}
+<div class="flash">{{ msg }}</div>
+{% endfor %}
+<form method="post">
+<label>Email</label>
+<input type="email" name="email" required placeholder="admin@structure.ci" autofocus>
+<label>Mot de passe</label>
+<input type="password" name="password" required placeholder="••••••••">
+<button type="submit">Se connecter</button>
+</form>
+</div>
+</body>
+</html>

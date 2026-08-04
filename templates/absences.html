@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block content %}
+<main>
+{% if attente %}
+<div class="card" style="margin-bottom:16px;border-left:4px solid var(--warning)">
+  <div class="card-title">⏳ DEMANDES EN ATTENTE ({{ attente|length }})</div>
+  {% for d in attente %}
+  <div style="background:var(--panel);border-radius:10px;padding:16px;margin-bottom:12px;border:1px solid var(--border)">
+    <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:10px">
+      <div>
+        <div style="font-size:15px;font-weight:700;color:var(--accent)">{{ d.prenom }} {{ d.nom }}</div>
+        <div style="font-size:12px;color:var(--text-dim)">{{ d.matricule }} – {{ d.poste or 'Agent' }}</div>
+      </div>
+      <div style="text-align:center;background:var(--card);border-radius:8px;padding:10px 16px">
+        <div style="font-size:24px;font-weight:700;color:var(--warning)">{{ d.nb_jours }}</div>
+        <div style="font-size:10px;color:var(--text-dim)">jour(s)</div>
+      </div>
+    </div>
+    <div style="font-size:12px;color:var(--text-dim);margin-bottom:8px">
+      📅 {{ d.date_debut }} → {{ d.date_fin }} | Type: {{ d.type_absence }}
+    </div>
+    <div style="background:var(--card);border-radius:6px;padding:10px;margin-bottom:12px;font-size:13px">
+      📝 {{ d.motif }}
+    </div>
+    <form method="post" action="{{ url_for('decider_absence', did=d.id) }}">
+      <div class="form-group" style="margin-bottom:8px">
+        <textarea name="commentaire" placeholder="Commentaire (optionnel)..." style="min-height:60px"></textarea>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button type="submit" name="decision" value="accorde" class="btn btn-success" style="flex:1">✅ Accorder</button>
+        <button type="submit" name="decision" value="refuse" class="btn btn-danger" style="flex:1"
+                onclick="return confirm('Confirmer le refus ?')">❌ Refuser</button>
+      </div>
+    </form>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+<div class="card">
+  <div class="card-title">📜 HISTORIQUE DES DÉCISIONS</div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>AGENT</th><th>TYPE</th><th>PÉRIODE</th><th>JOURS</th><th>STATUT</th><th>COMMENTAIRE</th></tr></thead>
+      <tbody>
+        {% for d in historique %}
+        <tr>
+          <td><div style="font-weight:600">{{ d.prenom }} {{ d.nom }}</div><div style="font-size:11px;color:var(--text-dim)">{{ d.matricule }}</div></td>
+          <td style="font-size:12px;color:var(--text-dim)">{{ d.type_absence }}</td>
+          <td style="font-size:12px">{{ d.date_debut }} → {{ d.date_fin }}</td>
+          <td style="text-align:center;font-weight:700;color:var(--accent)">{{ d.nb_jours }}</td>
+          <td>{% if d.statut=='accorde' %}<span class="badge badge-ok">✅ Accordée</span>
+              {% else %}<span class="badge badge-alerte">❌ Refusée</span>{% endif %}</td>
+          <td style="font-size:12px;color:var(--text-dim)">{{ d.commentaire_chef or '—' }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" style="text-align:center;padding:30px;color:var(--text-dim)">Aucune décision.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+</main>
+{% endblock %}

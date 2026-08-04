@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ANDE – Pointage QR Code</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', Arial, sans-serif; background: #0F1923; color: #E8F0FE; min-height: 100vh; display: flex; flex-direction: column; }
+.header { background: #1A6B2A; padding: 16px 32px; display: flex; align-items: center; justify-content: space-between; }
+.header h1 { font-size: 20px; font-weight: 700; color: white; }
+.header .time { font-size: 28px; font-weight: 700; color: #A8D5A2; }
+.service-bar { background: #0D4A1A; padding: 8px 32px; text-align: center; font-size: 12px; font-weight: 700; color: white; letter-spacing: 1px; }
+.main { flex: 1; display: flex; align-items: center; justify-content: center; gap: 40px; padding: 30px; flex-wrap: wrap; }
+.qr-section { text-align: center; }
+.qr-title { font-size: 22px; font-weight: 700; color: #00C9A7; margin-bottom: 20px; }
+.qr-box { background: white; padding: 24px; border-radius: 16px; display: inline-block; box-shadow: 0 0 40px rgba(0,201,167,.3); }
+.qr-box img { display: block; width: 280px; height: 280px; }
+.qr-info { margin-top: 16px; font-size: 13px; color: #7A8FA6; }
+.timer-bar { width: 280px; height: 6px; background: #243447; border-radius: 3px; margin: 12px auto 0; overflow: hidden; }
+.timer-fill { height: 100%; background: #00C9A7; border-radius: 3px; transition: width 1s linear; }
+.instructions { background: #162030; border-radius: 16px; padding: 28px; max-width: 360px; border: 1px solid #243447; }
+.instructions h2 { font-size: 16px; font-weight: 700; color: #00C9A7; margin-bottom: 20px; }
+.step { display: flex; align-items: flex-start; gap: 14px; margin-bottom: 18px; }
+.step-num { background: #00C9A7; color: #0A1520; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; flex-shrink: 0; }
+.step-text { font-size: 13px; color: #B0C4DE; line-height: 1.5; }
+.recent { background: #162030; border-radius: 16px; padding: 24px; min-width: 320px; border: 1px solid #243447; max-height: 400px; overflow-y: auto; }
+.recent h2 { font-size: 16px; font-weight: 700; color: #00C9A7; margin-bottom: 16px; }
+.recent-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #243447; }
+.recent-item:last-child { border-bottom: none; }
+.recent-name { font-size: 13px; font-weight: 600; }
+.recent-time { font-size: 12px; color: #7A8FA6; }
+.badge-arr { background: rgba(76,175,80,.2); color: #4CAF50; padding: 3px 8px; border-radius: 10px; font-size: 11px; font-weight: 700; }
+.badge-dep { background: rgba(255,107,53,.2); color: #FF6B35; padding: 3px 8px; border-radius: 10px; font-size: 11px; font-weight: 700; }
+.footer { background: #0A1520; padding: 12px 32px; text-align: center; font-size: 11px; color: #3D5A73; }
+.url-info { background: #1E2D3D; border-radius: 10px; padding: 12px 20px; margin-top: 16px; font-size: 12px; color: #7A8FA6; }
+.url-info strong { color: #00C9A7; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <h1>🌿 ANDE – Système de Pointage</h1>
+    <div style="font-size:12px;color:#A8D5A2;margin-top:4px">Agence Nationale De l'Environnement</div>
+  </div>
+  <div class="time" id="clock">--:--:--</div>
+</div>
+<div class="service-bar">SERVICE PROMOTEUR ET RELATIONS EXTERIEURES</div>
+
+<div class="main">
+
+  <!-- QR Code -->
+  <div class="qr-section">
+    <div class="qr-title">📱 Scannez pour pointer</div>
+    <div class="qr-box">
+      <img id="qrImage" src="/pointage/qr-image?token={{ token }}" alt="QR Code">
+    </div>
+    <div class="timer-bar">
+      <div class="timer-fill" id="timerFill" style="width:100%"></div>
+    </div>
+    <div class="qr-info">🔄 QR Code se renouvelle automatiquement</div>
+
+    <div class="url-info">
+      📱 Sur votre téléphone, allez sur :<br>
+      <strong>{{ base_url }}/pointage/mobile</strong>
+    </div>
+  </div>
+
+  <!-- Instructions -->
+  <div class="instructions">
+    <h2>📋 Comment pointer ?</h2>
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-text">Ouvrez le navigateur sur votre téléphone (Chrome ou Safari)</div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-text">Allez sur l'adresse affichée ci-dessous ou scannez le QR Code avec votre caméra</div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-text">Entrez votre matricule agent</div>
+    </div>
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-text">Cliquez <strong style="color:#4CAF50">Arrivée</strong> le matin ou <strong style="color:#FF6B35">Départ</strong> le soir</div>
+    </div>
+    <div class="step">
+      <div class="step-num">5</div>
+      <div class="step-text">Votre pointage est enregistré automatiquement ✅</div>
+    </div>
+  </div>
+
+  <!-- Pointages récents -->
+  <div class="recent">
+    <h2>⏰ Pointages du jour</h2>
+    <div id="recentList">
+      {% for p in pointages %}
+      <div class="recent-item">
+        <div>
+          <div class="recent-name">{{ p.prenom }} {{ p.nom }}</div>
+          <div class="recent-time">{{ p.matricule }} – {{ p.poste }}</div>
+        </div>
+        <div style="text-align:right">
+          {% if p.heure_arrivee %}
+          <span class="badge-arr">▶ {{ p.heure_arrivee[:5] }}</span>
+          {% endif %}
+          {% if p.heure_depart %}
+          <br><span class="badge-dep">◀ {{ p.heure_depart[:5] }}</span>
+          {% endif %}
+        </div>
+      </div>
+      {% else %}
+      <div style="text-align:center;color:#7A8FA6;padding:20px">
+        Aucun pointage aujourd'hui.
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+</div>
+
+<div class="footer">
+  ANDE – Système de Pointage Automatique – {{ now }}
+</div>
+
+<script>
+// Horloge
+function updateClock() {
+  const now = new Date();
+  document.getElementById('clock').textContent = now.toLocaleTimeString('fr-FR');
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// Timer QR Code (60 secondes)
+let timeLeft = 60;
+const timerFill = document.getElementById('timerFill');
+
+function refreshQR() {
+  fetch('/pointage/new-token')
+    .then(r => r.json())
+    .then(data => {
+      document.getElementById('qrImage').src = '/pointage/qr-image?token=' + data.token + '&t=' + Date.now();
+      timeLeft = 60;
+    });
+}
+
+setInterval(() => {
+  timeLeft--;
+  timerFill.style.width = (timeLeft / 60 * 100) + '%';
+  if (timeLeft <= 0) refreshQR();
+}, 1000);
+
+// Rafraîchir les pointages toutes les 10 secondes
+setInterval(() => {
+  fetch('/pointage/recent')
+    .then(r => r.json())
+    .then(data => {
+      let html = '';
+      if (data.length === 0) {
+        html = '<div style="text-align:center;color:#7A8FA6;padding:20px">Aucun pointage aujourd\'hui.</div>';
+      }
+      data.forEach(p => {
+        html += `<div class="recent-item">
+          <div>
+            <div class="recent-name">${p.prenom} ${p.nom}</div>
+            <div class="recent-time">${p.matricule} – ${p.poste}</div>
+          </div>
+          <div style="text-align:right">
+            ${p.heure_arrivee ? '<span class="badge-arr">▶ ' + p.heure_arrivee.substring(0,5) + '</span>' : ''}
+            ${p.heure_depart ? '<br><span class="badge-dep">◀ ' + p.heure_depart.substring(0,5) + '</span>' : ''}
+          </div>
+        </div>`;
+      });
+      document.getElementById('recentList').innerHTML = html;
+    });
+}, 10000);
+</script>
+</body>
+</html>

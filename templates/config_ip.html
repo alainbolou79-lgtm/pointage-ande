@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% block title %}Configuration IP Pointage{% endblock %}
+{% block content %}
+<main>
+
+<!-- Alerte IP actuelle -->
+<div class="card" style="margin-bottom:16px;border-left:4px solid var(--accent)">
+  <div class="card-title">🌐 ADRESSE IP PUBLIQUE ACTUELLE DU BUREAU</div>
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+    <div>
+      <div style="font-size:32px;font-weight:700;color:var(--accent);font-family:monospace">
+        {{ ip_actuelle }}
+      </div>
+      <div style="font-size:12px;color:var(--text-dim);margin-top:4px">
+        C'est l'IP publique depuis laquelle vous accédez actuellement à l'application
+      </div>
+    </div>
+    <form method="post" action="{{ url_for('ajouter_ip_auto') }}">
+      <div class="form-group" style="margin:0 0 8px">
+        <input type="text" name="description" value="Bureau ANDE"
+               placeholder="Description" style="width:200px">
+      </div>
+      <button type="submit" class="btn btn-primary">
+        ✅ Enregistrer cette IP comme IP du bureau
+      </button>
+    </form>
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+
+  <!-- Liste des IPs autorisées -->
+  <div class="card">
+    <div class="card-title">🔐 IPs AUTORISÉES POUR LE POINTAGE</div>
+
+    {% if not ips %}
+    <div style="background:rgba(255,184,0,.1);border:1px solid var(--warning);border-radius:8px;padding:16px;margin-bottom:16px">
+      <div style="color:var(--warning);font-weight:700;margin-bottom:4px">⚠️ Aucune IP configurée</div>
+      <div style="font-size:12px;color:var(--text-dim)">
+        Tant qu'aucune IP n'est configurée, le pointage est autorisé depuis n'importe où.
+        Ajoutez l'IP du bureau pour sécuriser le système.
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>ADRESSE IP</th><th>DESCRIPTION</th><th>DATE AJOUT</th><th>ACTION</th></tr>
+        </thead>
+        <tbody>
+          {% for ip in ips %}
+          <tr>
+            <td style="font-family:monospace;color:var(--accent);font-weight:700;font-size:15px">
+              {{ ip.ip_address }}
+            </td>
+            <td style="color:var(--text-dim)">{{ ip.description }}</td>
+            <td style="font-size:12px;color:var(--text-dim)">{{ ip.date_ajout[:16] }}</td>
+            <td>
+              <form method="post" action="{{ url_for('supprimer_ip', ip_id=ip.id) }}"
+                    onsubmit="return confirm('Supprimer cette IP ?')">
+                <button class="btn btn-danger btn-sm" type="submit">🗑️</button>
+              </form>
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="4" style="text-align:center;padding:20px;color:var(--text-dim)">
+              Aucune IP autorisée configurée.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Ajouter IP manuellement -->
+  <div class="card">
+    <div class="card-title">➕ AJOUTER UNE IP MANUELLEMENT</div>
+    <form method="post" action="{{ url_for('ajouter_ip') }}">
+      <div class="form-group">
+        <label>Adresse IP publique *</label>
+        <input type="text" name="ip" required placeholder="Ex: 41.202.219.10"
+               style="font-family:monospace;font-size:16px;letter-spacing:1px">
+      </div>
+      <div class="form-group">
+        <label>Description</label>
+        <input type="text" name="description" value="Bureau ANDE" placeholder="Ex: Bureau principal ANDE">
+      </div>
+      <button type="submit" class="btn btn-primary">➕ Ajouter cette IP</button>
+    </form>
+
+    <!-- Explication -->
+    <div style="margin-top:20px;padding:16px;background:var(--panel);border-radius:10px;border:1px solid var(--border)">
+      <div style="font-size:12px;font-weight:700;color:var(--accent);margin-bottom:8px">
+        💡 COMMENT ÇA FONCTIONNE ?
+      </div>
+      <div style="font-size:12px;color:var(--text-dim);line-height:1.8">
+        <p>1. <strong style="color:var(--text)">Au bureau</strong> : connectez-vous à l'application depuis le PC du bureau et cliquez <strong>"Enregistrer cette IP"</strong></p>
+        <p style="margin-top:6px">2. <strong style="color:var(--text)">Les agents</strong> doivent être connectés au <strong>WiFi du bureau</strong> pour pouvoir pointer</p>
+        <p style="margin-top:6px">3. <strong style="color:var(--danger)">Si un agent essaie de pointer depuis chez lui</strong> (IP différente), le système refuse automatiquement</p>
+        <p style="margin-top:6px">4. <strong style="color:var(--text)">Si l'IP change</strong> (redémarrage du routeur), supprimez l'ancienne et enregistrez la nouvelle</p>
+      </div>
+    </div>
+
+    <!-- Bouton voir mon IP (pour les agents) -->
+    <div style="margin-top:16px;padding:14px;background:var(--card);border-radius:10px;text-align:center">
+      <div style="font-size:12px;color:var(--text-dim);margin-bottom:8px">
+        Votre IP actuelle depuis ce navigateur :
+      </div>
+      <div id="monIp" style="font-size:20px;font-weight:700;color:var(--accent);font-family:monospace">
+        {{ ip_actuelle }}
+      </div>
+      <div id="ipStatut" style="font-size:12px;margin-top:6px"></div>
+    </div>
+  </div>
+</div>
+
+</main>
+<script>
+// Vérifier si l'IP actuelle est autorisée
+fetch('/pointage/mon-ip')
+  .then(r => r.json())
+  .then(data => {
+    document.getElementById('monIp').textContent = data.ip;
+    const statut = document.getElementById('ipStatut');
+    if (data.autorisee) {
+      statut.innerHTML = '<span style="color:#4CAF50">✅ Cette IP est autorisée pour le pointage</span>';
+    } else {
+      statut.innerHTML = '<span style="color:#FF4444">❌ Cette IP n\'est PAS autorisée</span>';
+    }
+  });
+</script>
+{% endblock %}

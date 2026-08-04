@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ANDE Mobile</title>
+<link rel="manifest" href="/static/manifest.json">
+<meta name="theme-color" content="#1A6B2A">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="ANDE Mobile">
+<link rel="apple-touch-icon" href="/static/icons/icon-192.png">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',Arial,sans-serif;background:#0F1923;color:#E8F0FE;min-height:100vh;padding:20px}
+.header{background:#1A6B2A;margin:-20px -20px 20px;padding:20px;text-align:center}
+.header h1{font-size:20px;font-weight:700;color:white}
+.header p{font-size:12px;color:#A8D5A2;margin-top:4px}
+.logo{font-size:60px;text-align:center;margin:20px 0}
+.app-name{font-size:24px;font-weight:700;color:#00C9A7;text-align:center;margin-bottom:4px}
+.app-sub{font-size:13px;color:#7A8FA6;text-align:center;margin-bottom:24px}
+
+/* Bouton principal */
+.btn-ouvrir{display:block;width:100%;padding:18px;border-radius:14px;border:none;
+  background:#00C9A7;color:#0A1520;font-size:18px;font-weight:700;
+  cursor:pointer;text-decoration:none;text-align:center;margin-bottom:16px}
+.btn-install{display:none;width:100%;padding:18px;border-radius:14px;border:2px solid #00C9A7;
+  background:transparent;color:#00C9A7;font-size:18px;font-weight:700;
+  cursor:pointer;margin-bottom:16px}
+
+/* Instructions par plateforme */
+.platform-card{background:#162030;border-radius:14px;padding:20px;margin-bottom:16px;border:1px solid #243447}
+.platform-title{font-size:14px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.step{display:flex;align-items:flex-start;gap:12px;margin-bottom:12px}
+.step-num{background:#1A6B2A;color:white;width:26px;height:26px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;flex-shrink:0}
+.step-text{font-size:13px;color:#B0C4DE;line-height:1.5}
+.step-text strong{color:#E8F0FE}
+.highlight{background:#1E2D3D;border-radius:8px;padding:10px 14px;margin-top:8px;
+  font-size:12px;color:#00C9A7;border-left:3px solid #00C9A7}
+.features{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+.feature{background:#162030;border-radius:10px;padding:14px;text-align:center;border:1px solid #243447}
+.feature-icon{font-size:28px;margin-bottom:6px}
+.feature-text{font-size:12px;color:#7A8FA6}
+.already-installed{background:rgba(76,175,80,.1);border:1px solid #4CAF50;
+  border-radius:10px;padding:14px;text-align:center;font-size:14px;color:#4CAF50;
+  display:none;margin-bottom:16px}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🌿 ANDE – Service Promoteur</h1>
+  <p>Agence Nationale De l'Environnement</p>
+</div>
+
+<div class="logo">📱</div>
+<div class="app-name">ANDE Mobile</div>
+<div class="app-sub">Pointage & Gestion des Absences</div>
+
+<!-- Déjà installée -->
+<div class="already-installed" id="alreadyInstalled">
+  ✅ Application déjà installée sur votre téléphone !
+</div>
+
+<!-- Bouton installation Android -->
+<button class="btn-install" id="btnInstall" onclick="installerApp()">
+  📲 Installer l'application
+</button>
+
+<!-- Bouton ouvrir -->
+<a href="/pointage/mobile" class="btn-ouvrir">▶ Ouvrir l'application</a>
+
+<!-- Fonctionnalités -->
+<div class="features">
+  <div class="feature">
+    <div class="feature-icon">⏰</div>
+    <div class="feature-text">Pointage arrivée & départ</div>
+  </div>
+  <div class="feature">
+    <div class="feature-icon">📝</div>
+    <div class="feature-text">Demandes d'absence</div>
+  </div>
+  <div class="feature">
+    <div class="feature-icon">👑</div>
+    <div class="feature-text">Gestion chef de service</div>
+  </div>
+  <div class="feature">
+    <div class="feature-icon">🔔</div>
+    <div class="feature-text">Suivi en temps réel</div>
+  </div>
+</div>
+
+<!-- Instructions iPhone -->
+<div class="platform-card" id="iosCard" style="display:none">
+  <div class="platform-title">
+    <span style="font-size:24px">🍎</span>
+    <span style="color:#00C9A7">Installer sur iPhone / iPad</span>
+  </div>
+  <div class="step">
+    <div class="step-num">1</div>
+    <div class="step-text">
+      Appuyez sur l'icône <strong>Partager</strong> en bas de Safari
+      <div class="highlight">📤 L'icône ressemble à un carré avec une flèche vers le haut</div>
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-num">2</div>
+    <div class="step-text">
+      Faites défiler et appuyez sur <strong>"Sur l'écran d'accueil"</strong>
+      <div class="highlight">🏠 Icône avec un +</div>
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-num">3</div>
+    <div class="step-text">
+      Appuyez sur <strong>"Ajouter"</strong> en haut à droite
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-num">4</div>
+    <div class="step-text">
+      ✅ L'icône <strong>ANDE Mobile</strong> apparaît sur votre écran d'accueil !
+    </div>
+  </div>
+</div>
+
+<!-- Instructions Android -->
+<div class="platform-card" id="androidCard" style="display:none">
+  <div class="platform-title">
+    <span style="font-size:24px">🤖</span>
+    <span style="color:#00C9A7">Installer sur Android</span>
+  </div>
+  <div class="step">
+    <div class="step-num">1</div>
+    <div class="step-text">
+      Appuyez sur le menu <strong>⋮</strong> (3 points) en haut à droite de Chrome
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-num">2</div>
+    <div class="step-text">
+      Appuyez sur <strong>"Ajouter à l'écran d'accueil"</strong>
+      <div class="highlight">📲 Ou "Installer l'application" si disponible</div>
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-num">3</div>
+    <div class="step-text">
+      Appuyez sur <strong>"Ajouter"</strong> pour confirmer
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-num">4</div>
+    <div class="step-text">
+      ✅ L'icône <strong>ANDE Mobile</strong> apparaît sur votre écran d'accueil !
+    </div>
+  </div>
+</div>
+
+<script>
+// Service Worker
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/static/sw.js').catch(e => console.log(e));
+}
+
+// Détecter plateforme
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+const isAndroid = /Android/.test(navigator.userAgent);
+const isStandalone = window.matchMedia('(display-mode: standalone)').matches
+                  || navigator.standalone === true;
+
+if (isStandalone) {
+  document.getElementById('alreadyInstalled').style.display = 'block';
+} else if (isIOS) {
+  document.getElementById('iosCard').style.display = 'block';
+} else if (isAndroid) {
+  document.getElementById('androidCard').style.display = 'block';
+}
+
+// Installation Android automatique
+let deferredPrompt;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  document.getElementById('btnInstall').style.display = 'block';
+  document.getElementById('androidCard').style.display = 'none';
+});
+
+function installerApp() {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  deferredPrompt.userChoice.then(r => {
+    if (r.outcome === 'accepted') {
+      document.getElementById('alreadyInstalled').style.display = 'block';
+      document.getElementById('btnInstall').style.display = 'none';
+    }
+    deferredPrompt = null;
+  });
+}
+
+window.addEventListener('appinstalled', () => {
+  document.getElementById('alreadyInstalled').style.display = 'block';
+  document.getElementById('btnInstall').style.display = 'none';
+});
+</script>
+</body>
+</html>

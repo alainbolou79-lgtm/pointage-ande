@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Pointage Mobile</title>
+<link rel="manifest" href="/static/manifest.json">
+<meta name="theme-color" content="#1A6B2A">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',Arial,sans-serif;background:#0F1923;color:#E8F0FE;
+     min-height:100vh;display:flex;flex-direction:column}
+.header{background:#1A6B2A;padding:16px;text-align:center}
+.header h1{font-size:18px;font-weight:700;color:white}
+.header p{font-size:12px;color:#A8D5A2;margin-top:4px}
+.content{flex:1;padding:20px;max-width:400px;margin:0 auto;width:100%}
+.card{background:#1E2D3D;border-radius:16px;border:1px solid #243447;
+      padding:24px;margin-bottom:16px}
+.card-title{font-size:13px;font-weight:700;color:#00C9A7;text-transform:uppercase;
+            letter-spacing:1px;margin-bottom:16px;text-align:center}
+/* Champ identifiant */
+.input-wrap{position:relative;margin-bottom:14px}
+.input-wrap label{display:block;font-size:11px;color:#7A8FA6;text-transform:uppercase;
+                  letter-spacing:.5px;margin-bottom:6px;font-weight:600}
+.input-wrap input{width:100%;padding:14px 16px;border-radius:10px;
+                  border:2px solid #243447;background:#162030;color:#E8F0FE;
+                  font-size:18px;text-align:center;letter-spacing:2px;
+                  font-family:monospace;transition:border .2s}
+.input-wrap input:focus{outline:none;border-color:#00C9A7}
+.input-hint{font-size:11px;color:#7A8FA6;text-align:center;margin-top:6px}
+/* Agent trouvé */
+.agent-found{background:rgba(0,201,167,.1);border:1px solid #00C9A7;border-radius:10px;
+             padding:14px;margin-bottom:14px;text-align:center;display:none}
+.agent-found .nom{font-size:18px;font-weight:700;color:#00C9A7}
+.agent-found .poste{font-size:12px;color:#7A8FA6;margin-top:4px}
+/* Boutons pointage */
+.btns{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.btn{padding:16px;border-radius:12px;border:none;font-size:15px;font-weight:700;
+     cursor:pointer;transition:all .2s;display:flex;flex-direction:column;
+     align-items:center;gap:6px}
+.btn-arrivee{background:#1A6B2A;color:white}
+.btn-depart{background:#CC4400;color:white}
+.btn:hover{opacity:.85;transform:scale(.98)}
+.btn:disabled{opacity:.4;cursor:not-allowed;transform:none}
+.btn .emoji{font-size:28px}
+/* Résultat */
+.result{border-radius:12px;padding:20px;text-align:center;display:none;margin-bottom:14px}
+.result.success{background:rgba(76,175,80,.15);border:1px solid #4CAF50}
+.result.error{background:rgba(255,68,68,.15);border:1px solid #FF4444}
+.result.warning{background:rgba(255,184,0,.15);border:1px solid #FFB800}
+.result .icon{font-size:48px;margin-bottom:10px}
+.result .msg{font-size:18px;font-weight:700;margin-bottom:6px}
+.result .heure{font-size:32px;font-weight:700;color:#00C9A7}
+.result .detail{font-size:12px;color:#7A8FA6;margin-top:8px}
+/* Tabs */
+.tabs{display:flex;background:#162030;border-radius:10px;padding:4px;margin-bottom:16px}
+.tab{flex:1;padding:10px;text-align:center;border-radius:8px;font-size:13px;
+     font-weight:600;cursor:pointer;color:#7A8FA6;transition:all .2s}
+.tab.active{background:#1E2D3D;color:#00C9A7}
+/* Absence form */
+.absence-form{display:none}
+.form-group{margin-bottom:14px}
+.form-group label{display:block;font-size:11px;color:#7A8FA6;text-transform:uppercase;
+                  letter-spacing:.5px;margin-bottom:6px;font-weight:600}
+.form-group input,.form-group select,.form-group textarea{
+  width:100%;padding:12px 14px;border-radius:8px;border:1px solid #243447;
+  background:#162030;color:#E8F0FE;font-size:14px;font-family:inherit}
+.btn-submit{width:100%;padding:14px;border-radius:10px;border:none;
+            background:#00C9A7;color:#0A1520;font-size:15px;font-weight:700;cursor:pointer}
+.historique{margin-top:10px}
+.hist-item{background:#162030;border-radius:8px;padding:10px 14px;
+           margin-bottom:8px;font-size:12px;border-left:3px solid #243447}
+.hist-item.accorde{border-color:#4CAF50}
+.hist-item.refuse{border-color:#FF4444}
+.hist-item.en_attente{border-color:#FFB800}
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>⏰ Pointage Mobile</h1>
+  <p id="clock-display">--:-- -- -------</p>
+</div>
+
+<div class="content">
+  <!-- Tabs -->
+  <div class="tabs">
+    <div class="tab active" onclick="showTab('pointage')">⏰ Pointage</div>
+    <div class="tab" onclick="showTab('absence')">📝 Absence</div>
+  </div>
+
+  <!-- ONGLET POINTAGE -->
+  <div id="tab-pointage">
+    <div class="card">
+      <div class="card-title">🔑 Votre identifiant</div>
+      <div class="input-wrap">
+        <label>Matricule ou Numéro de téléphone</label>
+        <input type="text" id="identifiant" placeholder="Ex: ANDE001 ou 0700000000"
+               oninput="rechercherAgent(this.value)"
+               autocomplete="off" autocorrect="off" autocapitalize="none">
+        <div class="input-hint">Entrez votre matricule OU votre numéro de téléphone</div>
+      </div>
+
+      <!-- Agent trouvé -->
+      <div class="agent-found" id="agentFound">
+        <div class="nom" id="agentNom"></div>
+        <div class="poste" id="agentPoste"></div>
+      </div>
+
+      <!-- Boutons -->
+      <div class="btns">
+        <button class="btn btn-arrivee" id="btnArrivee" onclick="pointer('arrivee')" disabled>
+          <span class="emoji">✅</span>
+          <span>Arrivée</span>
+        </button>
+        <button class="btn btn-depart" id="btnDepart" onclick="pointer('depart')" disabled>
+          <span class="emoji">👋</span>
+          <span>Départ</span>
+        </button>
+      </div>
+
+      <!-- Résultat -->
+      <div class="result" id="result">
+        <div class="icon" id="resultIcon"></div>
+        <div class="msg" id="resultMsg"></div>
+        <div class="heure" id="resultHeure"></div>
+        <div class="detail" id="resultDetail"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ONGLET ABSENCE -->
+  <div id="tab-absence" style="display:none">
+    <div class="card">
+      <div class="card-title">📝 Demande d'absence</div>
+      <div class="input-wrap">
+        <label>Votre matricule ou téléphone</label>
+        <input type="text" id="absMatricule" placeholder="Ex: ANDE001 ou 0700000000">
+      </div>
+      <div class="absence-form" id="absenceForm">
+        <div class="form-group">
+          <label>Type d'absence</label>
+          <select id="typeAbsence">
+            <option value="conge">🏖️ Congé</option>
+            <option value="maladie">🏥 Maladie</option>
+            <option value="mission">✈️ Mission</option>
+            <option value="autre">📋 Autre</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Date de début</label>
+          <input type="date" id="dateDebut">
+        </div>
+        <div class="form-group">
+          <label>Date de fin</label>
+          <input type="date" id="dateFin">
+        </div>
+        <div class="form-group">
+          <label>Motif</label>
+          <textarea id="motif" rows="3" placeholder="Expliquez le motif de votre absence..."></textarea>
+        </div>
+        <button class="btn-submit" onclick="soumettreDemande()">📤 Soumettre la demande</button>
+      </div>
+      <button class="btn-submit" style="margin-top:10px;background:#243447;color:#E8F0FE"
+              onclick="voirHistorique()">📜 Voir mes demandes</button>
+      <div class="historique" id="historique"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// Horloge
+function updateClock() {
+  const now = new Date();
+  document.getElementById('clock-display').textContent =
+    now.toLocaleTimeString('fr-FR') + ' – ' +
+    now.toLocaleDateString('fr-FR', {weekday:'long',day:'numeric',month:'long'});
+}
+setInterval(updateClock, 1000); updateClock();
+
+// Tabs
+function showTab(tab) {
+  document.getElementById('tab-pointage').style.display = tab === 'pointage' ? 'block' : 'none';
+  document.getElementById('tab-absence').style.display  = tab === 'absence'  ? 'block' : 'none';
+  document.querySelectorAll('.tab').forEach((t, i) => {
+    t.classList.toggle('active', (tab === 'pointage' && i === 0) || (tab === 'absence' && i === 1));
+  });
+}
+
+// Récupérer l'adresse MAC via WebRTC (si disponible)
+let macAddress = '';
+async function getMAC() {
+  try {
+    const pc = new RTCPeerConnection({ iceServers: [] });
+    pc.createDataChannel('');
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+    await new Promise(r => setTimeout(r, 500));
+    const sdp = pc.localDescription.sdp;
+    const match = sdp.match(/([0-9a-f]{2}:){5}[0-9a-f]{2}/i);
+    if (match) macAddress = match[0];
+    pc.close();
+  } catch(e) {
+    // Utiliser fingerprint alternatif
+    macAddress = navigator.userAgent.split('').reduce((a,c) => a + c.charCodeAt(0), 0).toString(16);
+  }
+  // Compléter avec canvas fingerprint
+  try {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    ctx.textBaseline = 'top';
+    ctx.font = '14px Arial';
+    ctx.fillText('fingerprint', 2, 2);
+    const fp = canvas.toDataURL().slice(-20);
+    macAddress = macAddress || fp;
+  } catch(e) {}
+}
+getMAC();
+
+// Recherche agent
+let searchTimer;
+let agentTrouve = null;
+
+function rechercherAgent(val) {
+  clearTimeout(searchTimer);
+  val = val.trim();
+  if (val.length < 3) {
+    document.getElementById('agentFound').style.display = 'none';
+    document.getElementById('btnArrivee').disabled = true;
+    document.getElementById('btnDepart').disabled = true;
+    agentTrouve = null;
+    return;
+  }
+  searchTimer = setTimeout(() => {
+    fetch('/api/agent/' + encodeURIComponent(val))
+    .then(r => r.json())
+    .then(data => {
+      if (data.found) {
+        agentTrouve = { ...data, identifiant: val };
+        document.getElementById('agentNom').textContent = data.prenom + ' ' + data.nom;
+        document.getElementById('agentPoste').textContent = data.poste || 'Agent';
+        document.getElementById('agentFound').style.display = 'block';
+        document.getElementById('btnArrivee').disabled = false;
+        document.getElementById('btnDepart').disabled = false;
+        // Afficher form absence
+        document.getElementById('absenceForm').style.display = 'block';
+      } else {
+        agentTrouve = null;
+        document.getElementById('agentFound').style.display = 'none';
+        document.getElementById('btnArrivee').disabled = true;
+        document.getElementById('btnDepart').disabled = true;
+      }
+    });
+  }, 500);
+}
+
+// Pointage
+function pointer(type) {
+  if (!agentTrouve) return;
+  document.getElementById('btnArrivee').disabled = true;
+  document.getElementById('btnDepart').disabled = true;
+
+  fetch('/api/pointer', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({
+      matricule: agentTrouve.identifiant,
+      type: type,
+      mac_address: macAddress
+    })
+  })
+  .then(r => r.json())
+  .then(data => {
+    const res = document.getElementById('result');
+    res.className = 'result ' + (data.success ? 'success' : data.warning ? 'warning' : 'error');
+    document.getElementById('resultIcon').textContent   = data.icon || (data.success ? '✅' : '❌');
+    document.getElementById('resultMsg').textContent    = data.message || '';
+    document.getElementById('resultHeure').textContent  = data.heure || '';
+    document.getElementById('resultDetail').textContent = data.detail || '';
+    res.style.display = 'block';
+
+    // Réactiver après 3 secondes
+    setTimeout(() => {
+      document.getElementById('btnArrivee').disabled = false;
+      document.getElementById('btnDepart').disabled = false;
+      res.style.display = 'none';
+    }, 4000);
+  });
+}
+
+// Absence
+document.getElementById('absMatricule').addEventListener('input', function() {
+  const val = this.value.trim();
+  if (val.length >= 3) {
+    fetch('/api/agent/' + encodeURIComponent(val))
+    .then(r => r.json())
+    .then(data => {
+      document.getElementById('absenceForm').style.display = data.found ? 'block' : 'none';
+    });
+  }
+});
+
+function soumettreDemande() {
+  const matricule = document.getElementById('absMatricule').value.trim();
+  const dateDebut = document.getElementById('dateDebut').value;
+  const dateFin   = document.getElementById('dateFin').value;
+  const motif     = document.getElementById('motif').value.trim();
+  const type      = document.getElementById('typeAbsence').value;
+  if (!matricule || !dateDebut || !dateFin || !motif) {
+    alert('Veuillez remplir tous les champs.');
+    return;
+  }
+  const d1 = new Date(dateDebut), d2 = new Date(dateFin);
+  const nb = Math.ceil((d2-d1)/(1000*60*60*24)) + 1;
+  fetch('/api/absences/soumettre', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({matricule,date_debut:dateDebut,date_fin:dateFin,nb_jours:nb,motif,type_absence:type})
+  })
+  .then(r=>r.json())
+  .then(data => {
+    if (data.success) {
+      alert('✅ Demande soumise avec succès !');
+      document.getElementById('motif').value = '';
+    } else {
+      alert('❌ ' + (data.message || 'Erreur'));
+    }
+  });
+}
+
+function voirHistorique() {
+  const matricule = document.getElementById('absMatricule').value.trim();
+  if (!matricule) { alert('Entrez votre matricule ou téléphone.'); return; }
+  fetch('/api/absences/mes-demandes?matricule=' + encodeURIComponent(matricule))
+  .then(r=>r.json())
+  .then(data => {
+    const el = document.getElementById('historique');
+    if (!data.length) { el.innerHTML = '<p style="color:#7A8FA6;text-align:center;font-size:13px">Aucune demande.</p>'; return; }
+    el.innerHTML = data.map(d => `
+      <div class="hist-item ${d.statut}">
+        <div style="font-weight:700;color:#E8F0FE">${d.type_absence} — ${d.nb_jours} jour(s)</div>
+        <div style="color:#7A8FA6">${d.date_debut} → ${d.date_fin}</div>
+        <div style="margin-top:4px">
+          ${d.statut==='accorde'?'<span style="color:#4CAF50">✅ Accordée</span>':
+            d.statut==='refuse'?'<span style="color:#FF4444">❌ Refusée</span>':
+            '<span style="color:#FFB800">⏳ En attente</span>'}
+          ${d.commentaire_chef ? '<span style="color:#7A8FA6"> — '+d.commentaire_chef+'</span>' : ''}
+        </div>
+      </div>`).join('');
+  });
+}
+</script>
+</body>
+</html>

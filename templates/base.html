@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ cfg.structure_nom }} – Pointage</title>
+<link rel="manifest" href="/static/manifest.json">
+<meta name="theme-color" content="#1A6B2A">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--green:#1A6B2A;--green-dark:#0D4A1A;--accent:#00C9A7;--bg:#0F1923;--panel:#162030;--card:#1E2D3D;--border:#243447;--text:#E8F0FE;--text-dim:#7A8FA6;--danger:#FF4444;--warning:#FFB800;--success:#4CAF50;--orange:#FF6B35}
+body{font-family:'Segoe UI',Arial,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+.header{background:var(--green);padding:0;overflow:hidden}
+.header-img{width:100%;height:70px;object-fit:cover;display:block}
+.header-text{background:var(--green);padding:12px 24px;display:flex;justify-content:space-between;align-items:center}
+.header-text h1{font-size:16px;font-weight:700;color:white}
+.header-time{font-size:20px;font-weight:700;color:#A8D5A2}
+.service-bar{background:var(--green-dark);padding:7px 24px;display:flex;justify-content:space-between;align-items:center;font-size:12px}
+.service-bar span{color:white;font-weight:700;letter-spacing:.5px}
+.service-bar .user-info{color:#A8D5A2;display:flex;gap:12px;align-items:center}
+.service-bar a{color:#A8D5A2;text-decoration:none}
+nav{background:var(--panel);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:4px;padding:0 16px;overflow-x:auto}
+nav a{display:flex;align-items:center;gap:6px;color:var(--text-dim);text-decoration:none;padding:10px 14px;font-size:12px;font-weight:600;border-bottom:3px solid transparent;white-space:nowrap;transition:all .2s}
+nav a:hover{color:var(--text);background:var(--card)}
+nav a.active{color:var(--accent);border-bottom-color:var(--accent)}
+main{padding:16px}
+.card{background:var(--card);border-radius:12px;border:1px solid var(--border);padding:20px;margin-bottom:16px}
+.card-title{font-size:12px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:1px;margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+.stats-bar{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;padding:10px 16px;background:var(--panel);border-bottom:1px solid var(--border)}
+.stat-card{background:var(--card);border-radius:8px;padding:10px;text-align:center}
+.stat-card .val{font-size:22px;font-weight:700}
+.stat-card .lbl{font-size:10px;color:var(--text-dim);text-transform:uppercase;margin-top:2px}
+.table-wrap{overflow-x:auto;border-radius:8px;border:1px solid var(--border)}
+table{width:100%;border-collapse:collapse}
+thead tr{background:#0A1520}
+thead th{padding:10px 12px;text-align:left;font-size:11px;color:var(--accent);text-transform:uppercase;letter-spacing:.8px;font-weight:700;white-space:nowrap}
+tbody tr{border-bottom:1px solid var(--border)}
+tbody tr:hover{background:rgba(255,255,255,.03)}
+tbody td{padding:10px 12px;font-size:13px;vertical-align:middle}
+.badge{display:inline-block;padding:3px 8px;border-radius:20px;font-size:11px;font-weight:700}
+.badge-ok{background:rgba(76,175,80,.15);color:#4CAF50}
+.badge-alerte{background:rgba(255,68,68,.15);color:#FF6B6B}
+.badge-warning{background:rgba(255,184,0,.15);color:#FFB800}
+.badge-nodate{background:rgba(122,143,166,.15);color:var(--text-dim)}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;border:none;font-size:13px;font-weight:600;cursor:pointer;text-decoration:none;transition:all .2s;white-space:nowrap}
+.btn-primary{background:var(--accent);color:#0A1520}
+.btn-danger{background:var(--danger);color:white}
+.btn-warning{background:var(--warning);color:#0A1520}
+.btn-dim{background:var(--border);color:var(--text)}
+.btn-success{background:var(--success);color:white}
+.btn:hover{opacity:.85}
+.btn-sm{padding:4px 10px;font-size:12px}
+.form-group{margin-bottom:14px}
+.form-group label{display:block;font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;font-weight:600}
+.form-group input,.form-group select,.form-group textarea{width:100%;padding:10px 12px;border-radius:8px;border:1px solid var(--border);background:var(--panel);color:var(--text);font-size:13px;font-family:inherit}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{outline:none;border-color:var(--accent)}
+.form-group textarea{min-height:80px;resize:vertical}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.flash{padding:10px 16px;border-radius:8px;margin-bottom:12px;font-size:13px;font-weight:600}
+.flash-success{background:rgba(76,175,80,.15);color:#4CAF50;border:1px solid rgba(76,175,80,.3)}
+.flash-error{background:rgba(255,68,68,.15);color:#FF6B6B;border:1px solid rgba(255,68,68,.3)}
+.flash-warning{background:rgba(255,184,0,.15);color:#FFB800;border:1px solid rgba(255,184,0,.3)}
+@media(max-width:768px){.stats-bar{grid-template-columns:repeat(3,1fr)}.form-row{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="header-text">
+  <h1>🏢 {{ cfg.structure_nom }}</h1>
+  <div class="header-time" id="clock">--:--:--</div>
+</div>
+<div class="service-bar">
+  <span>{{ cfg.structure_service }}</span>
+  <div class="user-info">
+    <span>👤 {{ current_user }}</span>
+    <span id="date-str"></span>
+    <a href="{{ url_for('logout') }}">🚪 Déconnexion</a>
+  </div>
+</div>
+<nav>
+  <a href="{{ url_for('dashboard') }}" class="{{ 'active' if request.endpoint=='dashboard' }}">🏠 Tableau de bord</a>
+  <a href="{{ url_for('pointage_qr') }}" class="{{ 'active' if request.endpoint=='pointage_qr' }}" target="_blank">📱 QR Code</a>
+  <a href="{{ url_for('absences') }}" class="{{ 'active' if request.endpoint=='absences' }}">📝 Absences</a>
+  <a href="{{ url_for('agents') }}" class="{{ 'active' if request.endpoint=='agents' }}">👥 Agents</a>
+  {% if is_admin %}
+  <a href="{{ url_for('config_ip') }}" class="{{ 'active' if request.endpoint=='config_ip' }}">🔐 IP Config</a>
+  <a href="{{ url_for('importer_agents') }}" class="{{ 'active' if request.endpoint=='importer_agents' }}">📥 Import</a>
+  <a href="{{ url_for('appareils') }}" class="{{ 'active' if request.endpoint in ['appareils','appareils_exclus'] }}">📱 Appareils</a>
+  <a href="{{ url_for('configuration') }}" class="{{ 'active' if request.endpoint=='configuration' }}">⚙️ Config</a>
+  {% endif %}
+</nav>
+<div style="padding:0 16px;margin-top:10px">
+{% for cat,msg in get_flashed_messages(with_categories=True) %}
+<div class="flash flash-{{ cat }}">{{ msg }}</div>
+{% endfor %}
+</div>
+{% block content %}{% endblock %}
+<script>
+function updateClock(){
+  const now=new Date();
+  document.getElementById('clock').textContent=now.toLocaleTimeString('fr-FR');
+  const el=document.getElementById('date-str');
+  if(el) el.textContent=now.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+}
+setInterval(updateClock,1000);updateClock();
+</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

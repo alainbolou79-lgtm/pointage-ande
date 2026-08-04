@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="stats-bar">
+  <div class="stat-card"><div class="val" style="color:var(--text)">{{ stats.total_agents }}</div><div class="lbl">Total agents</div></div>
+  <div class="stat-card"><div class="val" style="color:var(--success)">{{ stats.presents }}</div><div class="lbl">Présents</div></div>
+  <div class="stat-card"><div class="val" style="color:var(--danger)">{{ stats.absents }}</div><div class="lbl">Absents</div></div>
+  <div class="stat-card"><div class="val" style="color:var(--warning)">{{ stats.partis }}</div><div class="lbl">Partis</div></div>
+  <div class="stat-card"><div class="val" style="color:#4A18A0">{{ absences_attente }}</div><div class="lbl">Abs. en attente</div></div>
+</div>
+<main>
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px">
+  <div style="display:flex;gap:8px">
+    <a href="{{ url_for('pointage_qr') }}" target="_blank" class="btn btn-primary">📱 Page QR Code</a>
+    <a href="{{ url_for('export_pointage') }}?date={{ date_sel }}" class="btn btn-primary" style="background:#1A6B2A">📥 Excel</a>
+    <a href="{{ url_for('absences') }}" class="btn btn-warning">📝 Absences{% if absences_attente %} ({{ absences_attente }}){% endif %}</a>
+  </div>
+  <form method="get" style="display:flex;gap:8px;align-items:center">
+    <label style="font-size:12px;color:var(--text-dim)">Date :</label>
+    <input type="date" name="date" value="{{ date_sel }}"
+           style="background:var(--card);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:8px;font-size:13px">
+    <button type="submit" class="btn btn-dim btn-sm">Voir</button>
+  </form>
+</div>
+<div class="card">
+  <div class="card-title">⏰ POINTAGES DU {{ date_sel }}</div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>MATRICULE</th><th>AGENT</th><th>POSTE</th><th>ARRIVÉE</th><th>DÉPART</th><th>DURÉE</th><th>STATUT</th></tr></thead>
+      <tbody>
+        {% for p in pointages %}
+        <tr>
+          <td style="font-family:monospace;color:var(--accent);font-weight:700">{{ p.matricule }}</td>
+          <td style="font-weight:600">{{ p.prenom }} {{ p.nom }}</td>
+          <td style="color:var(--text-dim);font-size:12px">{{ p.poste or '—' }}</td>
+          <td style="color:var(--success);font-weight:700;font-size:15px">{% if p.heure_arrivee %}{{ p.heure_arrivee[:5] }}{% else %}—{% endif %}</td>
+          <td style="color:var(--orange, #FF6B35);font-weight:700;font-size:15px">{% if p.heure_depart %}{{ p.heure_depart[:5] }}{% else %}—{% endif %}</td>
+          <td style="text-align:center;color:var(--accent)">
+            {% if p.duree_minutes %}{{ p.duree_minutes//60 }}h{{ '%02d'|format(p.duree_minutes%60) }}{% else %}—{% endif %}
+          </td>
+          <td>{% if p.heure_depart %}<span class="badge badge-warning">Parti</span>
+              {% elif p.heure_arrivee %}<span class="badge badge-ok">Présent</span>
+              {% else %}<span class="badge badge-nodate">—</span>{% endif %}</td>
+        </tr>
+        {% endfor %}
+        {% for a in absents %}
+        <tr style="background:rgba(255,68,68,.05)">
+          <td style="font-family:monospace;color:var(--text-dim)">{{ a.matricule }}</td>
+          <td style="color:var(--text-dim)">{{ a.prenom }} {{ a.nom }}</td>
+          <td style="color:var(--text-dim);font-size:12px">{{ a.poste or '—' }}</td>
+          <td>—</td><td>—</td><td>—</td>
+          <td><span class="badge badge-alerte">Absent</span></td>
+        </tr>
+        {% endfor %}
+        {% if not pointages and not absents %}
+        <tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-dim)">Aucun pointage.</td></tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+</div>
+</main>
+{% endblock %}

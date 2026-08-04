@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block content %}
+<main>
+<div class="card">
+  <div class="card-title">📱 APPAREILS AYANT POINTÉ CE JOUR — {{ today }}</div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>AGENT</th>
+          <th>MATRICULE</th>
+          <th>ADRESSE MAC</th>
+          <th>IP</th>
+          <th>TYPE</th>
+          <th>HEURE</th><th>ACTIONS</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for a in appareils %}
+        <tr>
+          <td style="font-weight:600">{{ a.prenom }} {{ a.nom }}</td>
+          <td style="font-family:monospace;color:var(--accent)">{{ a.matricule }}</td>
+          <td style="font-family:monospace;font-size:12px;color:var(--text-dim)">
+            {{ a.mac_address or '—' }}
+          </td>
+          <td style="font-family:monospace;font-size:12px;color:var(--text-dim)">
+            {{ a.ip_address or '—' }}
+          </td>
+          <td>
+            {% if a.type_pointage == 'arrivee' %}
+            <span class="badge badge-ok">✅ Arrivée</span>
+            {% else %}
+            <span class="badge badge-warning">👋 Départ</span>
+            {% endif %}
+          </td>
+          <td style="font-weight:700;color:var(--accent)">
+            {{ a.date_creation[11:16] if a.date_creation else '—' }}
+          </td>
+          <td>
+            <form method="post" action="{{ url_for('exclure_appareil') }}">
+              <input type="hidden" name="mac_address" value="{{ a.mac_address or '' }}">
+              <input type="hidden" name="ip_address"  value="{{ a.ip_address or '' }}">
+              <input type="hidden" name="description"
+                     value="Test – {{ a.prenom }} {{ a.nom }}">
+              <button type="submit" class="btn btn-warning btn-sm"
+                      title="Exclure cet appareil du contrôle doublon">
+                🔓 Exclure
+              </button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="6" style="text-align:center;padding:40px;color:var(--text-dim)">
+            Aucun appareil enregistré aujourd'hui.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+</main>
+{% endblock %}
