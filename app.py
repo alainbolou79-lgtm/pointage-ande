@@ -629,58 +629,6 @@ def appareils():
         """, (today,)).fetchall()]
     return render_template("appareils.html", appareils=liste, today=today)
 
-# ── IMPORT AGENTS DEPUIS EXCEL ────────────────────────────────────────────────
-@app.route("/agents/importer", methods=["GET","POST"])
-@admin_required
-def importer_agents():
-    if request.method == "POST":
-        import openpyxl, io as io_buf
-        f = request.files.get("fichier")
-        if not f:
-            flash("❌ Aucun fichier sélectionné.","error")
-            return redirect(url_for("importer_agents"))
-        try:
-            wb = openpyxl.load_workbook(io_buf.BytesIO(f.read()), read_only=True)
-            ws = wb.active
-            count = 0
-            with get_conn() as conn:
-                for i, row in enumerate(ws.iter_rows(min_row=2, values_only=True)):
-                    if not row[0]: continue
-                    nom       = str(row[0]).strip() if row[0] else ''
-                    prenom    = str(row[1]).strip() if len(row)>1 and row[1] else ''
-                    matricule = str(row[2]).strip().upper() if len(row)>2 and row[2] else ''
-                    poste     = str(row[3]).strip() if len(row)>3 and row[3] else ''
-                    telephone = str(row[4]).strip() if len(row)>4 and row[4] else ''
-                    if not matricule: continue
-                    try:
-                        conn.execute("""INSERT OR REPLACE INTO agents 
-                            (nom,prenom,matricule,poste,telephone,actif)
-                            VALUES (?,?,?,?,?,1)""",
-                            (nom,prenom,matricule,poste,telephone))
-                        count += 1
-                    except: pass
-                conn.commit()
-            flash(f"✅ {count} agent(s) importé(s) avec succès !","success")
-        except Exception as e:
-            flash(f"❌ Erreur : {e}","error")
-        return redirect(url_for("agents"))
-    return render_template("importer_agents.html")
-
-# ── CONTROLE APPAREILS ────────────────────────────────────────────────────────
-@app.route("/appareils")
-@admin_required
-def appareils():
-    today = datetime.now().strftime("%Y-%m-%d")
-    with get_conn() as conn:
-        liste = [dict(r) for r in conn.execute("""
-            SELECT a.*, ag.nom, ag.prenom, ag.matricule
-            FROM appareils_pointes a
-            JOIN agents ag ON a.agent_id = ag.id
-            WHERE a.date_pointage = ?
-            ORDER BY a.date_creation DESC
-        """, (today,)).fetchall()]
-    return render_template("appareils.html", appareils=liste, today=today)
-
 # ── EXCLUSIONS MAC ────────────────────────────────────────────────────────────
 @app.route("/appareils/exclure", methods=["POST"])
 @admin_required
