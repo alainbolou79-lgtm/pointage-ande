@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block content %}
+<main>
+<div class="card" style="max-width:700px;margin:0 auto">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+    <div class="card-title" style="margin:0">✏️ MODIFIER L'AGENT</div>
+    <a href="{{ url_for('agents') }}" class="btn btn-dim btn-sm">← Retour</a>
+  </div>
+  <form method="post">
+    <div class="form-row">
+      <div class="form-group">
+        <label>NOM *</label>
+        <input type="text" name="nom" required value="{{ agent.nom }}">
+      </div>
+      <div class="form-group">
+        <label>PRÉNOM *</label>
+        <input type="text" name="prenom" required value="{{ agent.prenom }}">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>MATRICULE *</label>
+        <input type="text" name="matricule" required value="{{ agent.matricule }}">
+      </div>
+      <div class="form-group">
+        <label>TÉLÉPHONE</label>
+        <input type="text" name="telephone" value="{{ agent.telephone or '' }}"
+               placeholder="07 00 00 00 00">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>POSTE</label>
+      <input type="text" name="poste" value="{{ agent.poste or '' }}"
+             placeholder="Ex: CF_Chef, Agent...">
+    </div>
+    <div class="form-group">
+      <label>🏢 STRUCTURE / DIRECTION / SERVICE</label>
+      <select name="structure_id">
+        <option value="">-- Non affecté --</option>
+        {% for s in structure_list %}
+        <option value="{{ s.id }}"
+          {% if agent.structure_id and agent.structure_id == s.id %}selected{% endif %}>
+          {% if s.type == 'direction' %}🏛️ DIRECTION —
+          {% elif s.type == 'sous_direction' %}📂 S/D —
+          {% else %}📋{% endif %}
+          {{ s.nom[:55] }}
+        </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-group">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+        <input type="checkbox" name="actif" {% if agent.actif %}checked{% endif %}
+               style="width:auto;margin:0">
+        Agent actif
+      </label>
+    </div>
+    <button type="submit" class="btn btn-primary" style="width:100%;padding:14px;font-size:15px">
+      💾 Enregistrer les modifications
+    </button>
+  </form>
+</div>
+</main>
+{% endblock %}

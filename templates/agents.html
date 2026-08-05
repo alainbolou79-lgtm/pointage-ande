@@ -2,48 +2,110 @@
 {% block content %}
 <main>
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+
+<!-- Liste agents -->
 <div class="card">
-  <div class="card-title">👥 AGENTS ({{ agents|length }})</div>
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+    <div class="card-title" style="margin:0">👥 AGENTS ({{ agents|length }})</div>
+    <a href="{{ url_for('importer_agents') }}" class="btn btn-primary btn-sm">📥 Importer Excel</a>
+  </div>
   <div class="table-wrap">
     <table>
-      <thead><tr><th>MATRICULE</th><th>NOM</th><th>POSTE</th><th>STRUCTURE</th><th>TÉL</th><th>ACTIONS</th></tr></thead>
+      <thead>
+        <tr>
+          <th>MATRICULE</th>
+          <th>NOM</th>
+          <th>POSTE</th>
+          <th>STRUCTURE</th>
+          <th>TÉL</th>
+          <th>ACTIONS</th>
+        </tr>
+      </thead>
       <tbody>
         {% for a in agents %}
         <tr>
           <td style="font-family:monospace;color:var(--accent);font-weight:700">{{ a.matricule }}</td>
           <td style="font-weight:600">{{ a.prenom }} {{ a.nom }}</td>
           <td style="font-size:12px;color:var(--text-dim)">{{ a.poste or '—' }}</td>
+          <td style="font-size:11px">
+            {% if a.structure_nom %}
+            <span class="badge" style="background:rgba(0,201,167,.15);color:var(--accent)">
+              {{ a.structure_nom[:20] }}
+            </span>
+            {% else %}
+            <span class="badge badge-nodate">Non affecté</span>
+            {% endif %}
+          </td>
           <td style="font-size:12px;color:var(--text-dim)">{{ a.telephone or '—' }}</td>
           <td>
-            <a href="{{ url_for('modifier_agent', aid=a.id) }}" class="btn btn-warning btn-sm">✏️</a>
+            <div style="display:flex;gap:4px">
+              <a href="{{ url_for('modifier_agent', aid=a.id) }}"
+                 class="btn btn-warning btn-sm">✏️</a>
               <form method="post" action="{{ url_for('supprimer_agent', aid=a.id) }}"
                     onsubmit="return confirm('Supprimer ?')" style="display:inline">
                 <button class="btn btn-danger btn-sm" type="submit">🗑️</button>
               </form>
+            </div>
           </td>
         </tr>
         {% else %}
-        <tr><td colspan="5" style="text-align:center;padding:30px;color:var(--text-dim)">Aucun agent.</td></tr>
+        <tr><td colspan="6" style="text-align:center;padding:30px;color:var(--text-dim)">
+          Aucun agent.
+        </td></tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
 </div>
+
+<!-- Formulaire ajout -->
 <div class="card">
   <div class="card-title">➕ AJOUTER UN AGENT</div>
   <form method="post" action="{{ url_for('ajouter_agent') }}">
     <div class="form-row">
-      <div class="form-group"><label>NOM *</label><input type="text" name="nom" required placeholder="Nom"></div>
-      <div class="form-group"><label>PRÉNOM *</label><input type="text" name="prenom" required placeholder="Prénom"></div>
+      <div class="form-group">
+        <label>NOM *</label>
+        <input type="text" name="nom" required placeholder="Nom">
+      </div>
+      <div class="form-group">
+        <label>PRÉNOM *</label>
+        <input type="text" name="prenom" required placeholder="Prénom">
+      </div>
     </div>
     <div class="form-row">
-      <div class="form-group"><label>MATRICULE *</label><input type="text" name="matricule" required placeholder="EX: AG-001"></div>
-      <div class="form-group"><label>TÉLÉPHONE</label><input type="text" name="telephone" placeholder="07 00 00 00 00"></div>
+      <div class="form-group">
+        <label>MATRICULE *</label>
+        <input type="text" name="matricule" required placeholder="Ex: AG-001">
+      </div>
+      <div class="form-group">
+        <label>TÉLÉPHONE</label>
+        <input type="text" name="telephone" placeholder="07 00 00 00 00">
+      </div>
     </div>
-    <div class="form-group"><label>POSTE</label><input type="text" name="poste" placeholder="Ex: Chef de service, Agent..."></div>
-    <button type="submit" class="btn btn-primary" style="width:100%;padding:12px">➕ Ajouter</button>
+    <div class="form-group">
+      <label>POSTE</label>
+      <input type="text" name="poste" placeholder="Ex: Chef de service, Agent...">
+    </div>
+    <div class="form-group">
+      <label>🏢 STRUCTURE / SERVICE</label>
+      <select name="structure_id">
+        <option value="">-- Non affecté --</option>
+        {% for s in structure_list %}
+        <option value="{{ s.id }}">
+          {% if s.type == 'direction' %}🏛️
+          {% elif s.type == 'sous_direction' %}📂
+          {% else %}📋{% endif %}
+          {{ s.nom[:50] }}
+        </option>
+        {% endfor %}
+      </select>
+    </div>
+    <button type="submit" class="btn btn-primary" style="width:100%;padding:12px">
+      ➕ Ajouter
+    </button>
   </form>
 </div>
+
 </div>
 </main>
 {% endblock %}

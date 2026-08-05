@@ -801,26 +801,35 @@ def supprimer_exclusion(eid):
 @admin_required
 def modifier_agent(aid):
     with get_conn() as conn:
+        cols = [r[1] for r in conn.execute("PRAGMA table_info(agents)").fetchall()]
+        if 'structure_id' not in cols:
+            conn.execute("ALTER TABLE agents ADD COLUMN structure_id INTEGER DEFAULT NULL")
+            conn.commit()
         agent = conn.execute("SELECT * FROM agents WHERE id=?", (aid,)).fetchone()
     if not agent:
         flash("Agent introuvable.","error")
         return redirect(url_for("agents"))
     agent = dict(agent)
     if request.method == "POST":
-        nom       = request.form.get("nom","").strip()
-        prenom    = request.form.get("prenom","").strip()
-        matricule = request.form.get("matricule","").strip().upper()
-        poste     = request.form.get("poste","").strip()
-        telephone = request.form.get("telephone","").strip()
-        actif     = 1 if request.form.get("actif") else 0
+        nom          = request.form.get("nom","").strip()
+        prenom       = request.form.get("prenom","").strip()
+        matricule    = request.form.get("matricule","").strip().upper()
+        poste        = request.form.get("poste","").strip()
+        telephone    = request.form.get("telephone","").strip()
+        actif        = 1 if request.form.get("actif") else 0
+        structure_id = request.form.get("structure_id","") or None
         with get_conn() as conn:
             conn.execute("""UPDATE agents SET nom=?,prenom=?,matricule=?,
-                poste=?,telephone=?,actif=? WHERE id=?""",
-                (nom,prenom,matricule,poste,telephone,actif,aid))
+                poste=?,telephone=?,actif=?,structure_id=? WHERE id=?""",
+                (nom,prenom,matricule,poste,telephone,actif,structure_id,aid))
             conn.commit()
         flash(f"✅ Agent {prenom} {nom} modifié !","success")
         return redirect(url_for("agents"))
-    return render_template("modifier_agent.html", agent=agent)
+    # Récupérer la liste des structures
+    with get_conn() as conn:
+        structure_list = [dict(r) for r in conn.execute(
+            "SELECT * FROM structure_org WHERE actif=1 ORDER BY type,nom").fetchall()]
+    return render_template("modifier_agent.html", agent=agent, structure_list=structure_list)
 
 # ── ORGANIGRAMME & STRUCTURE ──────────────────────────────────────────────────
 
