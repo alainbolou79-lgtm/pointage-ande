@@ -1,0 +1,216 @@
+{% extends "base.html" %}
+{% block title %}Organigramme{% endblock %}
+{% block content %}
+<main>
+
+<!-- Header -->
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+  <div>
+    <h2 style="font-size:16px;font-weight:700;color:var(--accent)">🏢 STRUCTURE ORGANISATIONNELLE</h2>
+    <div style="font-size:12px;color:var(--text-dim)">Gérez la structure de votre organisation</div>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap">
+    <button onclick="document.getElementById('modalUpload').style.display='flex'"
+            class="btn btn-primary">📎 Uploader Organigramme</button>
+    <button onclick="document.getElementById('modalAdd').style.display='flex'"
+            class="btn btn-warning">➕ Ajouter une entité</button>
+    <a href="{{ url_for('agents') }}" class="btn btn-dim">👥 Affecter les agents</a>
+  </div>
+</div>
+
+<!-- Organigrammes uploadés -->
+{% if organigrammes %}
+<div class="card" style="margin-bottom:16px">
+  <div class="card-title">📎 ORGANIGRAMMES UPLOADÉS</div>
+  <div style="display:flex;gap:10px;flex-wrap:wrap">
+    {% for o in organigrammes %}
+    <div style="background:var(--panel);border-radius:8px;padding:12px;
+                border:1px solid var(--border);text-align:center;min-width:120px">
+      <div style="font-size:24px;margin-bottom:6px">
+        {% if o.type_fichier=='pdf' %}📄{% elif o.type_fichier=='word' %}📝{% else %}🖼️{% endif %}
+      </div>
+      <div style="font-size:12px;font-weight:600;color:var(--text)">{{ o.nom[:20] }}</div>
+      <div style="font-size:10px;color:var(--text-dim)">{{ o.date_upload[:10] }}</div>
+      <a href="/organigramme/voir/{{ o.id }}" class="btn btn-primary btn-sm"
+         style="margin-top:8px;display:block">👁️ Voir</a>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<!-- Arbre organisationnel -->
+<div class="card">
+  <div class="card-title">🏢 STRUCTURE ORGANISATIONNELLE</div>
+  
+  {% for direction in structure %}
+  <div style="margin-bottom:20px">
+    <!-- Direction -->
+    <div style="background:var(--green, #1A6B2A);border-radius:10px;padding:14px 18px;
+                display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <div>
+        <div style="font-size:15px;font-weight:700;color:white">🏛️ {{ direction.nom }}</div>
+        <div style="font-size:11px;color:rgba(255,255,255,.7);margin-top:2px">
+          {{ direction.nb_agents }} agent(s) affecté(s)
+        </div>
+      </div>
+      <div style="display:flex;gap:6px">
+        <a href="{{ url_for('modifier_structure', sid=direction.id) }}"
+           class="btn btn-sm" style="background:rgba(255,255,255,.2);color:white;border:none">✏️</a>
+        <form method="post" action="{{ url_for('supprimer_structure', sid=direction.id) }}"
+              onsubmit="return confirm('Supprimer ?')" style="display:inline">
+          <button type="submit" class="btn btn-sm"
+                  style="background:rgba(255,68,68,.3);color:white;border:none">🗑️</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Services directs -->
+    {% if direction.services %}
+    <div style="margin-left:20px;margin-bottom:12px;display:flex;flex-wrap:wrap;gap:8px">
+      {% for s in direction.services %}
+      <div style="background:var(--panel);border:1px solid var(--border);border-radius:8px;
+                  padding:8px 14px;font-size:12px;display:flex;align-items:center;gap:8px">
+        <span style="color:var(--accent)">📌</span>
+        <div>
+          <div style="font-weight:600;color:var(--text)">{{ s.nom }}</div>
+          <div style="font-size:10px;color:var(--text-dim)">{{ s.nb_agents }} agent(s)</div>
+        </div>
+        <a href="{{ url_for('modifier_structure', sid=s.id) }}"
+           class="btn btn-sm btn-warning" style="padding:2px 8px">✏️</a>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Sous-directions -->
+    {% for sd in direction.sous_directions %}
+    <div style="margin-left:20px;margin-bottom:12px">
+      <!-- Sous-direction -->
+      <div style="background:#B8860B;border-radius:8px;padding:12px 16px;
+                  display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div>
+          <div style="font-size:13px;font-weight:700;color:white">📂 {{ sd.nom }}</div>
+          <div style="font-size:10px;color:rgba(255,255,255,.7)">{{ sd.nb_agents }} agent(s)</div>
+        </div>
+        <div style="display:flex;gap:4px">
+          <a href="{{ url_for('modifier_structure', sid=sd.id) }}"
+             class="btn btn-sm" style="background:rgba(255,255,255,.2);color:white;border:none">✏️</a>
+          <form method="post" action="{{ url_for('supprimer_structure', sid=sd.id) }}"
+                onsubmit="return confirm('Supprimer ?')" style="display:inline">
+            <button type="submit" class="btn btn-sm"
+                    style="background:rgba(255,68,68,.3);color:white;border:none">🗑️</button>
+          </form>
+        </div>
+      </div>
+
+      <!-- Services de la sous-direction -->
+      {% if sd.services %}
+      <div style="margin-left:20px;display:flex;flex-wrap:wrap;gap:8px">
+        {% for s in sd.services %}
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:8px;
+                    padding:8px 14px;font-size:12px;display:flex;align-items:center;gap:8px">
+          <span style="color:#B8860B">📋</span>
+          <div>
+            <div style="font-weight:600;color:var(--text)">{{ s.nom }}</div>
+            <div style="font-size:10px;color:var(--text-dim)">{{ s.nb_agents }} agent(s)</div>
+          </div>
+          <a href="{{ url_for('modifier_structure', sid=s.id) }}"
+             class="btn btn-sm btn-warning" style="padding:2px 8px">✏️</a>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% endfor %}
+
+  {% if not structure %}
+  <div style="text-align:center;padding:40px;color:var(--text-dim)">
+    <div style="font-size:48px;margin-bottom:12px">🏢</div>
+    <div>Aucune structure définie. Cliquez <strong>➕ Ajouter une entité</strong> pour commencer.</div>
+  </div>
+  {% endif %}
+</div>
+
+</main>
+
+<!-- Modal Upload Organigramme -->
+<div id="modalUpload" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);
+     z-index:500;align-items:center;justify-content:center"
+     onclick="if(event.target===this)this.style.display='none'">
+  <div style="background:var(--panel);border-radius:14px;width:500px;max-width:96vw;
+              padding:24px;border:1px solid var(--border)">
+    <div style="font-size:15px;font-weight:700;color:var(--accent);margin-bottom:16px">
+      📎 UPLOADER UN ORGANIGRAMME
+    </div>
+    <form method="post" action="{{ url_for('upload_organigramme') }}" enctype="multipart/form-data">
+      <div class="form-group">
+        <label>NOM DU FICHIER</label>
+        <input type="text" name="nom" required placeholder="Ex: Organigramme ANDE 2026">
+      </div>
+      <div class="form-group">
+        <label>FICHIER (Image, PDF ou Word)</label>
+        <input type="file" name="fichier" accept=".png,.jpg,.jpeg,.pdf,.docx,.doc"
+               required style="width:100%;padding:12px;background:var(--panel);
+               border:2px dashed var(--border);border-radius:8px;color:var(--text);cursor:pointer">
+        <div style="font-size:11px;color:var(--text-dim);margin-top:6px">
+          Formats acceptés : PNG, JPG, PDF, DOCX
+        </div>
+      </div>
+      <div style="display:flex;gap:10px">
+        <button type="submit" class="btn btn-primary" style="flex:1">📎 Uploader</button>
+        <button type="button" onclick="document.getElementById('modalUpload').style.display='none'"
+                class="btn btn-dim">Annuler</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal Ajouter entité -->
+<div id="modalAdd" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);
+     z-index:500;align-items:center;justify-content:center"
+     onclick="if(event.target===this)this.style.display='none'">
+  <div style="background:var(--panel);border-radius:14px;width:500px;max-width:96vw;
+              padding:24px;border:1px solid var(--border)">
+    <div style="font-size:15px;font-weight:700;color:var(--accent);margin-bottom:16px">
+      ➕ AJOUTER UNE ENTITÉ
+    </div>
+    <form method="post" action="{{ url_for('ajouter_structure') }}">
+      <div class="form-group">
+        <label>NOM *</label>
+        <input type="text" name="nom" required placeholder="Ex: Direction Générale, Sce RH...">
+      </div>
+      <div class="form-group">
+        <label>TYPE *</label>
+        <select name="type">
+          <option value="direction">🏛️ Direction</option>
+          <option value="sous_direction">📂 Sous-Direction</option>
+          <option value="service">📋 Service</option>
+          <option value="departement">🗂️ Département</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>RATTACHÉ À</label>
+        <select name="parent_id">
+          <option value="">-- Aucun (niveau racine) --</option>
+          {% for item in all_structure %}
+          <option value="{{ item.id }}">{{ '→ ' if item.parent_id }}{{ item.nom[:50] }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>DESCRIPTION</label>
+        <textarea name="description" style="min-height:60px"
+                  placeholder="Description optionnelle..."></textarea>
+      </div>
+      <div style="display:flex;gap:10px">
+        <button type="submit" class="btn btn-primary" style="flex:1">💾 Ajouter</button>
+        <button type="button" onclick="document.getElementById('modalAdd').style.display='none'"
+                class="btn btn-dim">Annuler</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

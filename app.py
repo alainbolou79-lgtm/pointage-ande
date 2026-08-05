@@ -464,9 +464,29 @@ def decider_absence_mobile():
 @login_required
 def agents():
     with get_conn() as conn:
-        liste = [dict(r) for r in conn.execute(
-            "SELECT * FROM agents WHERE actif=1 ORDER BY nom").fetchall()]
-    return render_template("agents.html", agents=liste)
+        # Ajouter colonne structure_id si nécessaire
+        cols = [r[1] for r in conn.execute("PRAGMA table_info(agents)").fetchall()]
+        if 'structure_id' not in cols:
+            conn.execute("ALTER TABLE agents ADD COLUMN structure_id INTEGER DEFAULT NULL")
+            conn.commit()
+        conn.execute("""CREATE TABLE IF NOT EXISTS structure_org (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nom TEXT NOT NULL, type TEXT NOT NULL,
+            parent_id INTEGER DEFAULT NULL,
+            description TEXT DEFAULT '',
+            ordre INTEGER DEFAULT 0, actif INTEGER DEFAULT 1,
+            date_creation TEXT DEFAULT (datetime('now','localtime'))
+        )""")
+        conn.commit()
+        liste = [dict(r) for r in conn.execute("""
+            SELECT a.*, s.nom as structure_nom
+            FROM agents a
+            LEFT JOIN structure_org s ON a.structure_id = s.id
+            WHERE a.actif=1 ORDER BY a.nom
+        """).fetchall()]
+        structure_list = [dict(r) for r in conn.execute(
+            "SELECT * FROM structure_org WHERE actif=1 ORDER BY type,nom").fetchall()]
+    return render_template("agents.html", agents=liste, structure_list=structure_list)
 
 @app.route("/agents/ajouter", methods=["POST"])
 @admin_required
@@ -801,3 +821,162 @@ def modifier_agent(aid):
         flash(f"✅ Agent {prenom} {nom} modifié !","success")
         return redirect(url_for("agents"))
     return render_template("modifier_agent.html", agent=agent)
+
+# ── ORGANIGRAMME & STRUCTURE ──────────────────────────────────────────────────
+
+def get_structure_tree():
+    """Retourne la structure sous forme d'arbre."""
+    with get_conn() as conn:
+        conn.execute("""CREATE TABLE IF NOT EXISTS structure_org (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nom TEXT NOT NULL, type TEXT NOT NULL,
+            parent_id INTEGER DEFAULT NULL,
+            description TEXT DEFAULT '',
+            ordre INTEGER DEFAULT 0, actif INTEGER DEFAULT 1,
+            date_creation TEXT DEFAULT (datetime('now','localtime'))
+        )""")
+        conn.execute("""CREATE TABLE IF NOT EXISTS agent_structure (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            agent_id INTEGER NOT NULL, structure_id INTEGER NOT NULL,
+            fonction TEXT DEFAULT '',
+            date_affectation TEXT DEFAULT (datetime('now','localtime'))
+        )""")
+        conn.commit()
+        all_items = [dict(r) for r in conn.execute(
+            "SELECT * FROM structure_org WHERE actif=1 ORDER BY ordre,id").fetchall()]
+        # Compter agents par structure
+        for item in all_items:
+            item['nb_agents'] = conn.execute(
+                "SELECT COUNT(*) FROM agents WHERE structure_id=? AND actif=1",
+                (item['id'],)).fetchone()[0]
+
+    directions = [i for i in all_items if i['type']=='direction']
+    for d in directions:
+        d['services'] = [i for i in all_items
+                        if i['parent_id']==d['id'] and i['type']=='service']
+        d['sous_directions'] = [i for i in all_items
+                               if i['parent_id']==d['id'] and i['type']=='sous_direction']
+        for sd in d['sous_directions']:
+            sd['services'] = [i for i in all_items
+                             if i['parent_id']==sd['id'] and i['type']=='service']
+    return directions, all_items
+
+@app.route("/organigramme")
+@admin_required
+def organigramme():
+    with get_conn() as conn:
+        conn.execute("""CREATE TABLE IF NOT EXISTS organigrammes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nom TEXT NOT NULL, fichier_path TEXT NOT NULL,
+            type_fichier TEXT DEFAULT 'image',
+            date_upload TEXT DEFAULT (datetime('now','localtime'))
+        )""")
+        conn.commit()
+        orgs = [dict(r) for r in conn.execute(
+            "SELECT * FROM organigrammes ORDER BY date_upload DESC").fetchall()]
+    structure, all_items = get_structure_tree()
+    return render_template("organigramme.html",
+        structure=structure, organigrammes=orgs, all_structure=all_items)
+
+@app.route("/organigramme/ajouter", methods=["POST"])
+@admin_required
+def ajouter_structure():
+    nom    = request.form.get("nom","").strip()
+    type_s = request.form.get("type","service")
+    parent = request.form.get("parent_id","") or None
+    desc   = request.form.get("description","").strip()
+    if nom:
+        with get_conn() as conn:
+            conn.execute("""INSERT INTO structure_org (nom,type,parent_id,description)
+                VALUES (?,?,?,?)""", (nom, type_s, parent, desc))
+            conn.commit()
+        flash(f"✅ '{nom}' ajouté !","success")
+    return redirect(url_for("organigramme"))
+
+@app.route("/organigramme/<int:sid>/modifier", methods=["GET","POST"])
+@admin_required
+def modifier_structure(sid):
+    with get_conn() as conn:
+        item = conn.execute("SELECT * FROM structure_org WHERE id=?", (sid,)).fetchone()
+    if not item:
+        flash("Entité introuvable.","error")
+        return redirect(url_for("organigramme"))
+    item = dict(item)
+    if request.method == "POST":
+        with get_conn() as conn:
+            conn.execute("""UPDATE structure_org SET nom=?,type=?,parent_id=?,description=?
+                WHERE id=?""",
+                (request.form.get("nom",""), request.form.get("type","service"),
+                 request.form.get("parent_id","") or None,
+                 request.form.get("description",""), sid))
+            conn.commit()
+        flash("✅ Modifié !","success")
+        return redirect(url_for("organigramme"))
+    _, all_items = get_structure_tree()
+    return render_template("modifier_structure.html", item=item, all_structure=all_items)
+
+@app.route("/organigramme/<int:sid>/supprimer", methods=["POST"])
+@admin_required
+def supprimer_structure(sid):
+    with get_conn() as conn:
+        conn.execute("UPDATE structure_org SET actif=0 WHERE id=?", (sid,))
+        conn.execute("UPDATE agents SET structure_id=NULL WHERE structure_id=?", (sid,))
+        conn.commit()
+    flash("Entité supprimée.","success")
+    return redirect(url_for("organigramme"))
+
+@app.route("/organigramme/upload", methods=["POST"])
+@admin_required
+def upload_organigramme():
+    import os
+    f    = request.files.get("fichier")
+    nom  = request.form.get("nom","Organigramme").strip()
+    if not f:
+        flash("❌ Aucun fichier.","error")
+        return redirect(url_for("organigramme"))
+    ext = f.filename.rsplit('.',1)[-1].lower() if '.' in f.filename else 'png'
+    type_f = 'pdf' if ext=='pdf' else 'word' if ext in ['doc','docx'] else 'image'
+    upload_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "organigrammes")
+    os.makedirs(upload_dir, exist_ok=True)
+    filename = f"org_{datetime.now().strftime('%Y%m%d%H%M%S')}.{ext}"
+    filepath = os.path.join(upload_dir, filename)
+    f.save(filepath)
+    with get_conn() as conn:
+        conn.execute("""CREATE TABLE IF NOT EXISTS organigrammes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, nom TEXT NOT NULL,
+            fichier_path TEXT NOT NULL, type_fichier TEXT DEFAULT 'image',
+            date_upload TEXT DEFAULT (datetime('now','localtime'))
+        )""")
+        conn.execute("INSERT INTO organigrammes (nom,fichier_path,type_fichier) VALUES (?,?,?)",
+                    (nom, filename, type_f))
+        conn.commit()
+    flash(f"✅ Organigramme '{nom}' uploadé !","success")
+    return redirect(url_for("organigramme"))
+
+@app.route("/organigramme/voir/<int:oid>")
+@login_required
+def voir_organigramme(oid):
+    with get_conn() as conn:
+        o = conn.execute("SELECT * FROM organigrammes WHERE id=?", (oid,)).fetchone()
+    if not o:
+        flash("Fichier introuvable.","error")
+        return redirect(url_for("organigramme"))
+    o = dict(o)
+    return f'<img src="/static/organigrammes/{o["fichier_path"]}" style="max-width:100%;height:auto">' \
+           if o['type_fichier']=='image' else \
+           f'<embed src="/static/organigrammes/{o["fichier_path"]}" width="100%" height="800px">'
+
+# Mise à jour route agents pour inclure structure
+@app.route("/agents/affecter/<int:aid>", methods=["POST"])
+@admin_required
+def affecter_structure(aid):
+    structure_id = request.form.get("structure_id","") or None
+    with get_conn() as conn:
+        # Ajouter colonne si nécessaire
+        cols = [r[1] for r in conn.execute("PRAGMA table_info(agents)").fetchall()]
+        if 'structure_id' not in cols:
+            conn.execute("ALTER TABLE agents ADD COLUMN structure_id INTEGER DEFAULT NULL")
+        conn.execute("UPDATE agents SET structure_id=? WHERE id=?", (structure_id, aid))
+        conn.commit()
+    flash("✅ Agent affecté !","success")
+    return redirect(url_for("agents"))

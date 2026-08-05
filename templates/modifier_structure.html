@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block content %}
+<main>
+<div class="card" style="max-width:600px;margin:0 auto">
+  <div class="card-title">✏️ MODIFIER L'ENTITÉ</div>
+  <form method="post">
+    <div class="form-group">
+      <label>NOM *</label>
+      <input type="text" name="nom" required value="{{ item.nom }}">
+    </div>
+    <div class="form-group">
+      <label>TYPE *</label>
+      <select name="type">
+        <option value="direction" {{ 'selected' if item.type=='direction' }}>🏛️ Direction</option>
+        <option value="sous_direction" {{ 'selected' if item.type=='sous_direction' }}>📂 Sous-Direction</option>
+        <option value="service" {{ 'selected' if item.type=='service' }}>📋 Service</option>
+        <option value="departement" {{ 'selected' if item.type=='departement' }}>🗂️ Département</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>RATTACHÉ À</label>
+      <select name="parent_id">
+        <option value="">-- Aucun --</option>
+        {% for s in all_structure %}
+        {% if s.id != item.id %}
+        <option value="{{ s.id }}" {{ 'selected' if item.parent_id==s.id }}>
+          {{ s.nom[:50] }}
+        </option>
+        {% endif %}
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-group">
+      <label>DESCRIPTION</label>
+      <textarea name="description" style="min-height:70px">{{ item.description or '' }}</textarea>
+    </div>
+    <div style="display:flex;gap:10px">
+      <button type="submit" class="btn btn-primary" style="flex:1">💾 Enregistrer</button>
+      <a href="{{ url_for('organigramme') }}" class="btn btn-dim">Annuler</a>
+    </div>
+  </form>
+</div>
+</main>
+{% endblock %}

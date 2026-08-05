@@ -85,6 +85,7 @@ tbody td{padding:10px 12px;font-size:13px;vertical-align:middle}
   <a href="{{ url_for('config_ip') }}" class="{{ 'active' if request.endpoint=='config_ip' }}">🔐 IP Config</a>
   <a href="{{ url_for('importer_agents') }}" class="{{ 'active' if request.endpoint=='importer_agents' }}">📥 Import</a>
   <a href="{{ url_for('appareils') }}" class="{{ 'active' if request.endpoint in ['appareils','appareils_exclus'] }}">📱 Appareils</a>
+  <a href="{{ url_for('organigramme') }}" class="{{ 'active' if request.endpoint in ['organigramme','modifier_structure'] }}">🏢 Structure</a>
   <a href="{{ url_for('configuration') }}" class="{{ 'active' if request.endpoint=='configuration' }}">⚙️ Config</a>
   {% endif %}
 </nav>
