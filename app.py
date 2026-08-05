@@ -844,11 +844,18 @@ def get_structure_tree():
         conn.commit()
         all_items = [dict(r) for r in conn.execute(
             "SELECT * FROM structure_org WHERE actif=1 ORDER BY ordre,id").fetchall()]
+        # Ajouter colonne structure_id si nécessaire
+        cols = [r[1] for r in conn.execute("PRAGMA table_info(agents)").fetchall()]
+        if 'structure_id' not in cols:
+            conn.execute("ALTER TABLE agents ADD COLUMN structure_id INTEGER DEFAULT NULL")
+            conn.commit()
         # Compter agents par structure
         for item in all_items:
-            item['nb_agents'] = conn.execute(
-                "SELECT COUNT(*) FROM agents WHERE structure_id=? AND actif=1",
-                (item['id'],)).fetchone()[0]
+            try:
+                item['nb_agents'] = conn.execute(
+                    "SELECT COUNT(*) FROM agents WHERE structure_id=? AND actif=1",
+                    (item['id'],)).fetchone()[0]
+            except: item['nb_agents'] = 0
 
     directions = [i for i in all_items if i['type']=='direction']
     for d in directions:
