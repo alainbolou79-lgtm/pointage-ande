@@ -143,29 +143,162 @@ def logout():
 @app.route("/")
 @login_required
 def dashboard():
-    date_sel = request.args.get("date", datetime.now().strftime("%Y-%m-%d"))
+    date_sel    = request.args.get("date", datetime.now().strftime("%Y-%m-%d"))
+    date_debut  = request.args.get("date_debut", "")
+    date_fin    = request.args.get("date_fin", "")
+    filtre      = request.args.get("filtre", "tous")
+    structure_f = request.args.get("structure_id", "")
+    search      = request.args.get("search", "")
+    vue         = request.args.get("vue", "jour")
+
     with get_conn() as conn:
+        # Tables et colonnes
+        cols = [r[1] for r in conn.execute("PRAGMA table_info(agents)").fetchall()]
+        if 'structure_id' not in cols:
+            conn.execute("ALTER TABLE agents ADD COLUMN structure_id INTEGER DEFAULT NULL")
+            conn.commit()
+        conn.execute("""CREATE TABLE IF NOT EXISTS structure_org (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nom TEXT NOT NULL, type TEXT NOT NULL,
+            parent_id INTEGER DEFAULT NULL, actif INTEGER DEFAULT 1
+        )""")
+        conn.commit()
+
         total_agents = conn.execute("SELECT COUNT(*) FROM agents WHERE actif=1").fetchone()[0]
-        presents     = conn.execute("""SELECT COUNT(*) FROM pointages
+        presents_j   = conn.execute("""SELECT COUNT(*) FROM pointages
             WHERE date_pointage=? AND heure_arrivee IS NOT NULL""",(date_sel,)).fetchone()[0]
-        partis       = conn.execute("""SELECT COUNT(*) FROM pointages
+        partis_j     = conn.execute("""SELECT COUNT(*) FROM pointages
             WHERE date_pointage=? AND heure_depart IS NOT NULL""",(date_sel,)).fetchone()[0]
-        pointages    = [dict(r) for r in conn.execute("""
-            SELECT p.*, a.nom, a.prenom, a.matricule, a.poste
+        absences_att = conn.execute(
+            "SELECT COUNT(*) FROM demandes_absence WHERE statut='en_attente'").fetchone()[0]
+        structures   = [dict(r) for r in conn.execute(
+            "SELECT * FROM structure_org WHERE actif=1 ORDER BY type,nom").fetchall()]
+
+        # ── VUE PÉRIODE ──────────────────────────────────────────────────────
+        if vue == "periode" and date_debut and date_fin:
+            from datetime import timedelta
+            agents_all = [dict(r) for r in conn.execute("""
+                SELECT a.*, s.nom as structure_nom
+                FROM agents a
+                LEFT JOIN structure_org s ON a.structure_id = s.id
+                WHERE a.actif=1 ORDER BY a.nom
+            """).fetchall()]
+
+            periode_stats = []
+            for agent in agents_all:
+                if structure_f and str(agent.get('structure_id') or '') != structure_f:
+                    continue
+                if search and search.lower() not in (
+                    agent['nom']+' '+agent['prenom']+' '+agent['matricule']).lower():
+                    continue
+
+                nb_presents = conn.execute("""
+                    SELECT COUNT(DISTINCT date_pointage) FROM pointages
+                    WHERE agent_id=? AND date_pointage BETWEEN ? AND ?
+                    AND heure_arrivee IS NOT NULL
+                """, (agent['id'], date_debut, date_fin)).fetchone()[0]
+
+                d1 = datetime.strptime(date_debut, "%Y-%m-%d")
+                d2 = datetime.strptime(date_fin,   "%Y-%m-%d")
+                jours_ouvr = sum(1 for i in range((d2-d1).days+1)
+                                 if (d1+timedelta(i)).weekday() < 5)
+                nb_absences = max(0, jours_ouvr - nb_presents)
+
+                nb_retards = conn.execute("""
+                    SELECT COUNT(*) FROM pointages
+                    WHERE agent_id=? AND date_pointage BETWEEN ? AND ?
+                    AND heure_arrivee > '08:30:00'
+                """, (agent['id'], date_debut, date_fin)).fetchone()[0]
+
+                nb_absences_just = conn.execute("""
+                    SELECT COUNT(*) FROM demandes_absence
+                    WHERE agent_id=? AND statut='accorde'
+                    AND date_debut >= ? AND date_fin <= ?
+                """, (agent['id'], date_debut, date_fin)).fetchone()[0]
+
+                agent['nb_presents']     = nb_presents
+                agent['nb_absences']     = nb_absences
+                agent['nb_absences_just']= nb_absences_just
+                agent['nb_absences_inj'] = max(0, nb_absences - nb_absences_just)
+                agent['nb_retards']      = nb_retards
+                agent['jours_ouvr']      = jours_ouvr
+                agent['taux_presence']   = round(nb_presents/jours_ouvr*100) if jours_ouvr>0 else 0
+                periode_stats.append(agent)
+
+            if filtre == "absents":
+                periode_stats = [a for a in periode_stats if a['nb_absences'] > 0]
+            elif filtre == "absents_injustifies":
+                periode_stats = [a for a in periode_stats if a['nb_absences_inj'] > 0]
+            elif filtre == "retards":
+                periode_stats = [a for a in periode_stats if a['nb_retards'] > 0]
+            elif filtre == "presents":
+                periode_stats = [a for a in periode_stats if a['nb_presents'] > 0]
+            elif filtre == "100":
+                periode_stats = [a for a in periode_stats if a['taux_presence'] == 100]
+
+            stats = {"total_agents":total_agents,"presents":presents_j,
+                     "absents":total_agents-presents_j,"partis":partis_j}
+            return render_template("dashboard.html",
+                stats=stats, pointages=[], absents=[],
+                date_sel=date_sel, absences_attente=absences_att,
+                vue="periode", periode_stats=periode_stats,
+                date_debut=date_debut, date_fin=date_fin,
+                filtre=filtre, structures=structures,
+                structure_f=structure_f, search=search)
+
+        # ── VUE JOURNALIÈRE ───────────────────────────────────────────────────
+        # Construire requête pointages du jour
+        sql_params = [date_sel]
+        sql_where  = "WHERE p.date_pointage=?"
+        if structure_f:
+            sql_where += " AND a.structure_id=?"
+            sql_params.append(structure_f)
+        if search:
+            sql_where += " AND (a.nom LIKE ? OR a.prenom LIKE ? OR a.matricule LIKE ?)"
+            sql_params += [f"%{search}%"]*3
+
+        pointages = [dict(r) for r in conn.execute(f"""
+            SELECT p.*, a.nom, a.prenom, a.matricule, a.poste, a.structure_id
             FROM pointages p JOIN agents a ON p.agent_id=a.id
-            WHERE p.date_pointage=? ORDER BY p.heure_arrivee""",(date_sel,)).fetchall()]
-        agents_ids   = {p["agent_id"] for p in pointages}
-        tous_agents  = [dict(r) for r in conn.execute("SELECT * FROM agents WHERE actif=1").fetchall()]
-        absents      = [a for a in tous_agents if a["id"] not in agents_ids]
-        absences_att = conn.execute("""SELECT COUNT(*) FROM demandes_absence
-            WHERE statut='en_attente'""").fetchone()[0]
-    stats = {"total_agents":total_agents,"presents":presents,
-             "absents":total_agents-presents,"partis":partis}
+            {sql_where} ORDER BY p.heure_arrivee
+        """, sql_params).fetchall()]
+
+        # Filtrer par type
+        if filtre == "presents":
+            pointages = [p for p in pointages if p.get('heure_arrivee')]
+        elif filtre == "partis":
+            pointages = [p for p in pointages if p.get('heure_depart')]
+        elif filtre == "retards":
+            pointages = [p for p in pointages if p.get('heure_arrivee','') > '08:30:00']
+
+        # Agents absents du jour
+        ids_presents = {p['agent_id'] for p in pointages}
+        sql_abs = "SELECT a.*, s.nom as structure_nom FROM agents a LEFT JOIN structure_org s ON a.structure_id=s.id WHERE a.actif=1"
+        abs_params = []
+        if structure_f:
+            sql_abs += " AND a.structure_id=?"
+            abs_params.append(structure_f)
+        if search:
+            sql_abs += " AND (a.nom LIKE ? OR a.prenom LIKE ? OR a.matricule LIKE ?)"
+            abs_params += [f"%{search}%"]*3
+        tous_agents = [dict(r) for r in conn.execute(sql_abs, abs_params).fetchall()]
+        absents = [a for a in tous_agents if a['id'] not in ids_presents]
+
+        if filtre == "absents":
+            pointages = []
+        elif filtre in ["presents","partis","retards"]:
+            absents = []
+
+    stats = {"total_agents":total_agents,"presents":presents_j,
+             "absents":total_agents-presents_j,"partis":partis_j}
     return render_template("dashboard.html",
         stats=stats, pointages=pointages, absents=absents,
-        date_sel=date_sel, absences_attente=absences_att)
+        date_sel=date_sel, absences_attente=absences_att,
+        vue="jour", periode_stats=[],
+        date_debut=date_debut, date_fin=date_fin,
+        filtre=filtre, structures=structures,
+        structure_f=structure_f, search=search)
 
-# ── QR CODE ───────────────────────────────────────────────────────────────────
 @app.route("/pointage/qr")
 @login_required
 def pointage_qr():

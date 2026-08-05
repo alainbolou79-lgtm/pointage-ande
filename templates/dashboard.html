@@ -1,5 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
+
+<!-- Stats -->
 <div class="stats-bar">
   <div class="stat-card"><div class="val" style="color:var(--text)">{{ stats.total_agents }}</div><div class="lbl">Total agents</div></div>
   <div class="stat-card"><div class="val" style="color:var(--success)">{{ stats.presents }}</div><div class="lbl">Présents</div></div>
@@ -7,56 +9,263 @@
   <div class="stat-card"><div class="val" style="color:var(--warning)">{{ stats.partis }}</div><div class="lbl">Partis</div></div>
   <div class="stat-card"><div class="val" style="color:#4A18A0">{{ absences_attente }}</div><div class="lbl">Abs. en attente</div></div>
 </div>
+
 <main>
-<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px">
-  <div style="display:flex;gap:8px">
-    <a href="{{ url_for('pointage_qr') }}" target="_blank" class="btn btn-primary">📱 Page QR Code</a>
-    <a href="{{ url_for('export_pointage') }}?date={{ date_sel }}" class="btn btn-primary" style="background:#1A6B2A">📥 Excel</a>
-    <a href="{{ url_for('absences') }}" class="btn btn-warning">📝 Absences{% if absences_attente %} ({{ absences_attente }}){% endif %}</a>
-  </div>
-  <form method="get" style="display:flex;gap:8px;align-items:center">
-    <label style="font-size:12px;color:var(--text-dim)">Date :</label>
-    <input type="date" name="date" value="{{ date_sel }}"
-           style="background:var(--card);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:8px;font-size:13px">
-    <button type="submit" class="btn btn-dim btn-sm">Voir</button>
+
+<!-- Filtres -->
+<div class="card" style="margin-bottom:14px">
+  <form method="get" id="formFiltres">
+
+    <!-- Vue -->
+    <div style="display:flex;gap:6px;margin-bottom:12px">
+      <span style="font-size:12px;color:var(--text-dim);align-self:center;font-weight:700">VUE :</span>
+      <a href="?vue=jour&date={{ date_sel }}&filtre={{ filtre }}&structure_id={{ structure_f }}&search={{ search }}"
+         class="btn btn-sm {% if vue=='jour' %}btn-primary{% else %}btn-dim{% endif %}">📅 Journalière</a>
+      <a href="?vue=periode&date_debut={{ date_debut or date_sel }}&date_fin={{ date_fin or date_sel }}&filtre={{ filtre }}&structure_id={{ structure_f }}&search={{ search }}"
+         class="btn btn-sm {% if vue=='periode' %}btn-primary{% else %}btn-dim{% endif %}">📆 Par période</a>
+    </div>
+
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+
+      {% if vue == 'jour' %}
+      <!-- Date journalière -->
+      <div class="form-group" style="margin:0;flex:1;min-width:140px">
+        <label>DATE</label>
+        <input type="date" name="date" value="{{ date_sel }}" onchange="this.form.submit()">
+        <input type="hidden" name="vue" value="jour">
+      </div>
+      {% else %}
+      <!-- Période -->
+      <div class="form-group" style="margin:0;flex:1;min-width:140px">
+        <label>DATE DÉBUT</label>
+        <input type="date" name="date_debut" value="{{ date_debut }}">
+        <input type="hidden" name="vue" value="periode">
+        <input type="hidden" name="date" value="{{ date_sel }}">
+      </div>
+      <div class="form-group" style="margin:0;flex:1;min-width:140px">
+        <label>DATE FIN</label>
+        <input type="date" name="date_fin" value="{{ date_fin }}">
+      </div>
+      {% endif %}
+
+      <!-- Structure -->
+      <div class="form-group" style="margin:0;flex:1;min-width:160px">
+        <label>🏢 STRUCTURE</label>
+        <select name="structure_id">
+          <option value="">Toutes les structures</option>
+          {% for s in structures %}
+          <option value="{{ s.id }}" {% if structure_f==s.id|string %}selected{% endif %}>
+            {% if s.type=='direction' %}🏛️{% elif s.type=='sous_direction' %}📂{% else %}📋{% endif %}
+            {{ s.nom[:35] }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <!-- Filtre statut -->
+      <div class="form-group" style="margin:0;flex:1;min-width:160px">
+        <label>FILTRE STATUT</label>
+        <select name="filtre">
+          <option value="tous" {% if filtre=='tous' %}selected{% endif %}>Tous</option>
+          <option value="presents" {% if filtre=='presents' %}selected{% endif %}>✅ Présents</option>
+          <option value="absents" {% if filtre=='absents' %}selected{% endif %}>❌ Absents</option>
+          {% if vue == 'periode' %}
+          <option value="absents_injustifies" {% if filtre=='absents_injustifies' %}selected{% endif %}>🔴 Absences injustifiées</option>
+          <option value="100" {% if filtre=='100' %}selected{% endif %}>⭐ 100% présence</option>
+          {% else %}
+          <option value="partis" {% if filtre=='partis' %}selected{% endif %}>👋 Partis</option>
+          {% endif %}
+          <option value="retards" {% if filtre=='retards' %}selected{% endif %}>⏰ Retards (>08h30)</option>
+        </select>
+      </div>
+
+      <!-- Recherche -->
+      <div class="form-group" style="margin:0;flex:2;min-width:180px">
+        <label>RECHERCHE</label>
+        <input type="text" name="search" value="{{ search }}" placeholder="Nom, prénom, matricule...">
+      </div>
+
+      <div style="display:flex;gap:6px;padding-bottom:2px">
+        <button type="submit" class="btn btn-primary">🔍 Filtrer</button>
+        <a href="?" class="btn btn-dim">↺ Réinitialiser</a>
+        <a href="{{ url_for('export_pointage') }}?date={{ date_sel }}" class="btn btn-primary" style="background:#1A6B2A">📥 Excel</a>
+      </div>
+    </div>
+
+    <!-- Raccourcis périodes -->
+    {% if vue == 'periode' %}
+    <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">
+      <span style="font-size:11px;color:var(--text-dim);align-self:center">Période rapide :</span>
+      <button type="button" onclick="setPeriode('semaine')" class="btn btn-dim btn-sm">Cette semaine</button>
+      <button type="button" onclick="setPeriode('mois')" class="btn btn-dim btn-sm">Ce mois</button>
+      <button type="button" onclick="setPeriode('trimestre')" class="btn btn-dim btn-sm">Ce trimestre</button>
+      <button type="button" onclick="setPeriode('annee')" class="btn btn-dim btn-sm">Cette année</button>
+    </div>
+    {% endif %}
+
   </form>
 </div>
+
+<!-- ════ VUE PÉRIODE ════ -->
+{% if vue == 'periode' and date_debut and date_fin %}
 <div class="card">
-  <div class="card-title">⏰ POINTAGES DU {{ date_sel }}</div>
+  <div class="card-title">
+    📆 RAPPORT PÉRIODE {{ date_debut }} → {{ date_fin }}
+    <span style="font-weight:400;color:var(--text-dim);font-size:11px">
+      — {{ periode_stats|length }} agent(s)
+      {% if filtre != 'tous' %} · Filtre: {{ filtre }}{% endif %}
+    </span>
+  </div>
   <div class="table-wrap">
     <table>
-      <thead><tr><th>MATRICULE</th><th>AGENT</th><th>POSTE</th><th>ARRIVÉE</th><th>DÉPART</th><th>DURÉE</th><th>STATUT</th></tr></thead>
+      <thead>
+        <tr>
+          <th>AGENT</th>
+          <th>MATRICULE</th>
+          <th>STRUCTURE</th>
+          <th style="text-align:center">JOURS OUVRABLES</th>
+          <th style="text-align:center">✅ PRÉSENTS</th>
+          <th style="text-align:center">❌ ABSENTS</th>
+          <th style="text-align:center">🔴 INJ.</th>
+          <th style="text-align:center">⏰ RETARDS</th>
+          <th style="text-align:center">TAUX</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for a in periode_stats %}
+        <tr style="{% if a.taux_presence < 50 %}background:rgba(255,68,68,.05){% elif a.taux_presence == 100 %}background:rgba(76,175,80,.05){% endif %}">
+          <td style="font-weight:600">{{ a.prenom }} {{ a.nom }}</td>
+          <td style="font-family:monospace;color:var(--accent)">{{ a.matricule }}</td>
+          <td style="font-size:11px;color:var(--text-dim)">{{ a.structure_nom or '—' }}</td>
+          <td style="text-align:center;color:var(--text-dim)">{{ a.jours_ouvr }}</td>
+          <td style="text-align:center;font-weight:700;color:var(--success)">{{ a.nb_presents }}</td>
+          <td style="text-align:center;font-weight:700;color:{% if a.nb_absences > 0 %}var(--danger){% else %}var(--text-dim){% endif %}">{{ a.nb_absences }}</td>
+          <td style="text-align:center;font-weight:700;color:{% if a.nb_absences_inj > 0 %}var(--danger){% else %}var(--text-dim){% endif %}">{{ a.nb_absences_inj }}</td>
+          <td style="text-align:center;color:{% if a.nb_retards > 0 %}var(--warning){% else %}var(--text-dim){% endif %}">{{ a.nb_retards }}</td>
+          <td style="text-align:center">
+            <div style="background:var(--border);border-radius:20px;height:8px;width:80px;display:inline-block;vertical-align:middle">
+              <div style="background:{% if a.taux_presence>=80 %}var(--success){% elif a.taux_presence>=50 %}var(--warning){% else %}var(--danger){% endif %};height:8px;border-radius:20px;width:{{ a.taux_presence }}%"></div>
+            </div>
+            <span style="font-size:11px;font-weight:700;margin-left:6px;color:{% if a.taux_presence>=80 %}var(--success){% elif a.taux_presence>=50 %}var(--warning){% else %}var(--danger){% endif %}">{{ a.taux_presence }}%</span>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="9" style="text-align:center;padding:40px;color:var(--text-dim)">
+          Aucun résultat pour cette période.
+        </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ════ VUE JOURNALIÈRE ════ -->
+{% else %}
+<div class="card">
+  <div class="card-title">
+    📅 POINTAGES DU {{ date_sel }}
+    <span style="font-weight:400;color:var(--text-dim);font-size:11px">
+      — {{ pointages|length }} pointage(s)
+      {% if filtre != 'tous' %} · Filtre: {{ filtre }}{% endif %}
+    </span>
+  </div>
+
+  {% if filtre != 'absents' %}
+  <div class="table-wrap" style="margin-bottom:16px">
+    <table>
+      <thead>
+        <tr>
+          <th>MATRICULE</th><th>AGENT</th><th>POSTE</th>
+          <th>ARRIVÉE</th><th>DÉPART</th><th>DURÉE</th><th>STATUT</th>
+        </tr>
+      </thead>
       <tbody>
         {% for p in pointages %}
         <tr>
           <td style="font-family:monospace;color:var(--accent);font-weight:700">{{ p.matricule }}</td>
           <td style="font-weight:600">{{ p.prenom }} {{ p.nom }}</td>
           <td style="color:var(--text-dim);font-size:12px">{{ p.poste or '—' }}</td>
-          <td style="color:var(--success);font-weight:700;font-size:15px">{% if p.heure_arrivee %}{{ p.heure_arrivee[:5] }}{% else %}—{% endif %}</td>
-          <td style="color:var(--orange, #FF6B35);font-weight:700;font-size:15px">{% if p.heure_depart %}{{ p.heure_depart[:5] }}{% else %}—{% endif %}</td>
+          <td style="color:{% if p.heure_arrivee and p.heure_arrivee > '08:30:00' %}var(--warning){% else %}var(--success){% endif %};font-weight:700;font-size:15px">
+            {% if p.heure_arrivee %}{{ p.heure_arrivee[:5] }}{% if p.heure_arrivee > '08:30:00' %} ⏰{% endif %}{% else %}—{% endif %}
+          </td>
+          <td style="color:var(--orange, #FF6B35);font-weight:700;font-size:15px">
+            {% if p.heure_depart %}{{ p.heure_depart[:5] }}{% else %}—{% endif %}
+          </td>
           <td style="text-align:center;color:var(--accent)">
             {% if p.duree_minutes %}{{ p.duree_minutes//60 }}h{{ '%02d'|format(p.duree_minutes%60) }}{% else %}—{% endif %}
           </td>
-          <td>{% if p.heure_depart %}<span class="badge badge-warning">Parti</span>
-              {% elif p.heure_arrivee %}<span class="badge badge-ok">Présent</span>
-              {% else %}<span class="badge badge-nodate">—</span>{% endif %}</td>
+          <td>
+            {% if p.heure_depart %}<span class="badge badge-warning">👋 Parti</span>
+            {% elif p.heure_arrivee %}<span class="badge badge-ok">✅ Présent</span>
+            {% else %}<span class="badge badge-nodate">—</span>{% endif %}
+          </td>
         </tr>
+        {% else %}
+        <tr><td colspan="7" style="text-align:center;padding:20px;color:var(--text-dim)">
+          Aucun pointage.
+        </td></tr>
         {% endfor %}
-        {% for a in absents %}
-        <tr style="background:rgba(255,68,68,.05)">
-          <td style="font-family:monospace;color:var(--text-dim)">{{ a.matricule }}</td>
-          <td style="color:var(--text-dim)">{{ a.prenom }} {{ a.nom }}</td>
-          <td style="color:var(--text-dim);font-size:12px">{{ a.poste or '—' }}</td>
-          <td>—</td><td>—</td><td>—</td>
-          <td><span class="badge badge-alerte">Absent</span></td>
-        </tr>
-        {% endfor %}
-        {% if not pointages and not absents %}
-        <tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-dim)">Aucun pointage.</td></tr>
-        {% endif %}
       </tbody>
     </table>
   </div>
+  {% endif %}
+
+  {% if filtre in ['tous','absents'] %}
+  <!-- Absents -->
+  {% if absents %}
+  <div style="margin-top:{% if filtre=='tous' %}8px{% else %}0{% endif %}">
+    <div style="font-size:12px;font-weight:700;color:var(--danger);margin-bottom:8px;
+                text-transform:uppercase;letter-spacing:.5px">
+      ❌ ABSENTS ({{ absents|length }})
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:8px">
+      {% for a in absents %}
+      <div style="background:rgba(255,68,68,.08);border:1px solid rgba(255,68,68,.2);
+                  border-radius:8px;padding:8px 14px;font-size:12px">
+        <span style="font-weight:700;color:var(--text)">{{ a.prenom }} {{ a.nom }}</span>
+        <span style="color:var(--text-dim);margin-left:6px">{{ a.matricule }}</span>
+        {% if a.structure_nom %}
+        <span style="color:var(--accent);margin-left:6px;font-size:10px">{{ a.structure_nom[:20] }}</span>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+  {% endif %}
+
 </div>
+
+<div style="display:flex;gap:8px;margin-top:8px">
+  <a href="{{ url_for('pointage_qr') }}" target="_blank" class="btn btn-primary">📱 Page QR Code</a>
+  <a href="{{ url_for('absences') }}" class="btn btn-warning">
+    📝 Absences{% if absences_attente %} ({{ absences_attente }}){% endif %}
+  </a>
+  <a href="{{ url_for('export_pointage') }}?date={{ date_sel }}" class="btn btn-primary" style="background:#1A6B2A">📥 Excel</a>
+</div>
+{% endif %}
+
 </main>
+
+<script>
+function setPeriode(type) {
+  const now = new Date();
+  let debut, fin;
+  if (type==='semaine') {
+    const day=now.getDay()||7; debut=new Date(now); debut.setDate(now.getDate()-day+1);
+    fin=new Date(debut); fin.setDate(debut.getDate()+4);
+  } else if (type==='mois') {
+    debut=new Date(now.getFullYear(),now.getMonth(),1);
+    fin=new Date(now.getFullYear(),now.getMonth()+1,0);
+  } else if (type==='trimestre') {
+    const q=Math.floor(now.getMonth()/3);
+    debut=new Date(now.getFullYear(),q*3,1); fin=new Date(now.getFullYear(),q*3+3,0);
+  } else {
+    debut=new Date(now.getFullYear(),0,1); fin=new Date(now.getFullYear(),11,31);
+  }
+  const fmt=d=>d.toISOString().split('T')[0];
+  document.querySelector('[name=date_debut]').value=fmt(debut);
+  document.querySelector('[name=date_fin]').value=fmt(fin);
+}
+</script>
 {% endblock %}
